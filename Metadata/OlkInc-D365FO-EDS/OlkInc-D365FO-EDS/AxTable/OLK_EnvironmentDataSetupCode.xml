@@ -36,10 +36,29 @@ public class OLK_EnvironmentDataSetupCode extends common
 			<Method>
 				<Name>className</Name>
 				<Source><![CDATA[
-    [SysClientCacheDataMethodAttribute(true)]
-    public display ClassName className()
+    /// <summary>
+    /// Gets or sets the code job class by its name.
+    /// </summary>
+    /// <param name = "_set">true when the value is set.</param>
+    /// <param name = "_name">The class name.</param>
+    /// <returns>The name of the code job class.</returns>
+    public edit ClassName className(boolean _set, ClassName _name)
     {
-        return classId2Name(this.ClassId);
+        if (_set)
+        {
+            ClassId classId = _name ? className2Id(_name) : 0;
+
+            if (_name && !classId)
+            {
+                checkFailed(strFmt("@OLK_EDSLabel:ClassNotFound", _name));
+            }
+            else
+            {
+                this.ClassId = classId;
+            }
+        }
+
+        return this.ClassId ? classId2Name(this.ClassId) : '';
     }
 
 ]]></Source>

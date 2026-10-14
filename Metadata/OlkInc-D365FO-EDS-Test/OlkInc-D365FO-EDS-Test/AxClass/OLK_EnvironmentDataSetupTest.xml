@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupTest</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// End-to-end tests for the environment data setup.
+/// </summary>
+/// <remarks>
+/// A customer group is set up with a different name for the DEV and the TEST environment. Executing the data setup
+/// for an environment must write that environment's name to the customer group.
+/// The test data is committed and kept, so the environments, data setup lines and log can be reviewed in the forms afterwards.
+/// </remarks>
+[SysTestTarget(classStr(OLK_EnvironmentDataSetupExecuteService), UtilElementType::Class),
+ SysTestTransaction(TestTransactionMode::None)]
+class OLK_EnvironmentDataSetupTest extends SysTestCase
+{
+    public const str DevEnvironmentId   = 'DEV';
+    public const str TestEnvironmentId  = 'TEST';
+    public const str CustGroupId        = 'EDSTEST';
+    public const str OriginalName       = 'EDS test customer group';
+    public const str DevName            = 'EDS test customer group DEV';
+    public const str TestName           = 'EDS test customer group TEST';
+
+    CustGroup custGroup;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>setUp</Name>
+				<Source><![CDATA[
+    public void setUp()
+    {
+        super();
+
+        ttsbegin;
+
+        custGroup = this.ensureCustGroup();
+
+        this.ensureEnvironment(OLK_EnvironmentDataSetupTest::DevEnvironmentId, 'Development');
+        this.ensureEnvironment(OLK_EnvironmentDataSetupTest::TestEnvironmentId, 'Test');
+
+        this.ensureNameLine(OLK_EnvironmentDataSetupTest::DevEnvironmentId, OLK_EnvironmentDataSetupTest::DevName);
+        this.ensureNameLine(OLK_EnvironmentDataSetupTest::TestEnvironmentId, OLK_EnvironmentDataSetupTest::TestName);
+
+        // Every test starts from the name the customer group has before any environment is applied.
+        this.setCustGroupName(OLK_EnvironmentDataSetupTest::OriginalName);
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>ensureCustGroup</Name>
+				<Source><![CDATA[
+    private CustGroup ensureCustGroup()
+    {
+        CustGroup custGroupBuffer = CustGroup::find(OLK_EnvironmentDataSetupTest::CustGroupId, true);
+
+        if (!custGroupBuffer.RecId)
+        {
+            custGroupBuffer.CustGroup = OLK_EnvironmentDataSetupTest::CustGroupId;
+            custGroupBuffer.Name      = OLK_EnvironmentDataSetupTest::OriginalName;
+            custGroupBuffer.insert();
+        }
+
+        return custGroupBuffer;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>ensureEnvironment</Name>
+				<Source><![CDATA[
+    private void ensureEnvironment(OLK_EdsEnvironmentId _environmentId, Description _description)
+    {
+        OLK_EnvironmentDataSetupTable environment;
+
+        if (!OLK_EnvironmentDataSetupTable::exist(_environmentId))
+        {
+            environment.EnvironmentId = _environmentId;
+            environment.Description   = _description;
+            environment.insert();
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>ensureNameLine</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds the customer group name to the data setup of an environment, with the name that environment must get.
+    /// </summary>
+    private void ensureNameLine(OLK_EdsEnvironmentId _environmentId, Description _name)
+    {
+        OLK_EnvironmentDataSetupTrans trans;
+
+        OLK_EnvironmentDataSetupTrans::createTrans(custGroup, fieldNum(CustGroup, Name), _environmentId, OLK_EdsOverwriteType::Always, 'Customer group name');
+
+        trans = OLK_EnvironmentDataSetupTrans::find(_environmentId, custGroup.DataAreaId, tableNum(CustGroup), custGroup.RecId, fieldNum(CustGroup, Name), '', true);
+        trans.Value = _name;
+        trans.update();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>setCustGroupName</Name>
+				<Source><![CDATA[
+    private void setCustGroupName(Description _name)
+    {
+        CustGroup custGroupBuffer = CustGroup::find(OLK_EnvironmentDataSetupTest::CustGroupId, true);
+
+        custGroupBuffer.Name = _name;
+        custGroupBuffer.update();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>custGroupName</Name>
+				<Source><![CDATA[
+    private Description custGroupName()
+    {
+        return CustGroup::find(OLK_EnvironmentDataSetupTest::CustGroupId).Name;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>executeDataSetup</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Executes the data setup of an environment, as the Execute environment data setup action does.
+    /// </summary>
+    private void executeDataSetup(OLK_EdsEnvironmentId _environmentId)
+    {
+        OLK_EnvironmentDataSetupExecuteContract contract = new OLK_EnvironmentDataSetupExecuteContract();
+
+        contract.parmEnvironmentId(_environmentId);
+        contract.parmExecuteData(NoYes::Yes);
+        contract.parmExecuteCode(NoYes::No);
+        contract.parmExecuteSql(NoYes::No);
+
+        new OLK_EnvironmentDataSetupExecuteService().execute(contract);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>lastLog</Name>
+				<Source><![CDATA[
+    private OLK_EnvironmentDataSetupLog lastLog(OLK_EdsEnvironmentId _environmentId)
+    {
+        OLK_EnvironmentDataSetupLog log;
+
+        select firstonly log
+            order by RecId desc
+            where log.EnvironmentId == _environmentId
+               && log.Type          == OLK_EdsLogType::Data
+               && log.RefTableId    == tableNum(CustGroup)
+               && log.RefRecId      == custGroup.RecId;
+
+        return log;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testDataSetupDevUpdatesCustGroup</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testDataSetupDevUpdatesCustGroup()
+    {
+        OLK_EnvironmentDataSetupLog log;
+
+        this.executeDataSetup(OLK_EnvironmentDataSetupTest::DevEnvironmentId);
+
+        this.assertEquals(OLK_EnvironmentDataSetupTest::DevName, this.custGroupName(), 'DEV data setup did not write the DEV name to the customer group.');
+
+        log = this.lastLog(OLK_EnvironmentDataSetupTest::DevEnvironmentId);
+        this.assertEquals(OLK_EdsLogStatus::OK, log.Status, 'The DEV data line was not logged as OK.');
+        this.assertEquals(OLK_EnvironmentDataSetupTest::OriginalName, log.ValueOrig, 'The log does not hold the name before the update.');
+        this.assertEquals(OLK_EnvironmentDataSetupTest::DevName, log.Value, 'The log does not hold the written name.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testDataSetupTestUpdatesCustGroup</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testDataSetupTestUpdatesCustGroup()
+    {
+        this.executeDataSetup(OLK_EnvironmentDataSetupTest::TestEnvironmentId);
+
+        this.assertEquals(OLK_EnvironmentDataSetupTest::TestName, this.custGroupName(), 'TEST data setup did not write the TEST name to the customer group.');
+        this.assertEquals(OLK_EdsLogStatus::OK, this.lastLog(OLK_EnvironmentDataSetupTest::TestEnvironmentId).Status, 'The TEST data line was not logged as OK.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testSwitchingEnvironments</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testSwitchingEnvironments()
+    {
+        this.executeDataSetup(OLK_EnvironmentDataSetupTest::DevEnvironmentId);
+        this.assertEquals(OLK_EnvironmentDataSetupTest::DevName, this.custGroupName(), 'DEV was not applied.');
+
+        this.executeDataSetup(OLK_EnvironmentDataSetupTest::TestEnvironmentId);
+        this.assertEquals(OLK_EnvironmentDataSetupTest::TestName, this.custGroupName(), 'TEST did not replace the DEV name.');
+
+        this.executeDataSetup(OLK_EnvironmentDataSetupTest::DevEnvironmentId);
+        this.assertEquals(OLK_EnvironmentDataSetupTest::DevName, this.custGroupName(), 'DEV did not replace the TEST name.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testOtherEnvironmentIsNotApplied</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testOtherEnvironmentIsNotApplied()
+    {
+        this.executeDataSetup(OLK_EnvironmentDataSetupTest::DevEnvironmentId);
+
+        this.assertNotEqual(OLK_EnvironmentDataSetupTest::TestName, this.custGroupName(), 'Executing DEV applied the TEST line.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testLineEnteredByNames</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A line entered in the Data setup form by table name, field name and value is valid and is executed.
+    /// </summary>
+    [SysTestMethod]
+    public void testLineEnteredByNames()
+    {
+        OLK_EnvironmentDataSetupTrans   trans;
+        OLK_EnvironmentDataSetupTrans   devTrans;
+        Description                     name = 'EDS test customer group DEV by name';
+
+        ttsbegin;
+
+        // Replace the DEV line with one entered the way a user enters it in the form.
+        devTrans = OLK_EnvironmentDataSetupTrans::find(OLK_EnvironmentDataSetupTest::DevEnvironmentId, custGroup.DataAreaId, tableNum(CustGroup), custGroup.RecId, fieldNum(CustGroup, Name), '', true);
+        devTrans.delete();
+
+        trans.EnvironmentId = OLK_EnvironmentDataSetupTest::DevEnvironmentId;
+        trans.Description   = 'Customer group name';
+        trans.dataTableName(true, tableStr(CustGroup));
+        trans.dataFieldName(true, fieldStr(CustGroup, Name));
+        trans.RefRecId      = custGroup.RecId;
+        trans.editValue(true, name);
+
+        this.assertEquals(custGroup.DataAreaId, trans.RefDataAreaId, 'The company was not set for a company specific table.');
+        this.assertEquals(fieldNum(CustGroup, Name), trans.FieldId, 'The field was not resolved from its name.');
+        this.assertTrue(trans.validateWrite(), 'A line entered by names did not validate.');
+        trans.insert();
+
+        ttscommit;
+
+        this.executeDataSetup(OLK_EnvironmentDataSetupTest::DevEnvironmentId);
+        this.assertEquals(name, this.custGroupName(), 'The line entered by names was not executed.');
+
+        // Put the standard DEV line back for the other tests.
+        ttsbegin;
+        this.ensureNameLine(OLK_EnvironmentDataSetupTest::DevEnvironmentId, OLK_EnvironmentDataSetupTest::DevName);
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testInvalidLineIsRejected</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testInvalidLineIsRejected()
+    {
+        OLK_EnvironmentDataSetupTrans trans;
+
+        trans.EnvironmentId = OLK_EnvironmentDataSetupTest::DevEnvironmentId;
+        trans.dataTableName(true, tableStr(CustGroup));
+        trans.RefRecId      = custGroup.RecId;
+
+        this.assertFalse(trans.validateWrite(), 'A line without a field was accepted.');
+
+        trans.dataFieldName(true, fieldStr(CustGroup, Name));
+        trans.RefRecId = 1;
+
+        this.assertFalse(trans.validateWrite(), 'A line for a record that does not exist was accepted.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testEnumValueBySymbol</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Enum values entered as a symbol are stored as the enum value number.
+    /// </summary>
+    [SysTestMethod]
+    public void testEnumValueBySymbol()
+    {
+        OLK_EnvironmentDataSetupTrans trans;
+
+        trans.dataTableName(true, tableStr(CustGroup));
+        trans.dataFieldName(true, fieldStr(CustGroup, PriceIncludeSalesTax));
+        trans.editValue(true, 'Yes');
+
+        this.assertTrue(trans.isEnumField(), 'PriceIncludeSalesTax is not seen as an enum field.');
+        this.assertEquals(int2Str(enum2int(NoYes::Yes)), trans.Value, 'The enum symbol was not stored as its value.');
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

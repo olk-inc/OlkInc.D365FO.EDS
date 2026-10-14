@@ -13,9 +13,126 @@ public class OLK_EnvironmentDataSetupTrans extends FormRun
 
 ]]></Source>
 			</Method>
+			<Method>
+				<Name>setEnumValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Lets the user pick the value of an enum field from the values of its enum.
+    /// </summary>
+    public void setEnumValue()
+    {
+        DictField   dictField = OLK_EnvironmentDataSetupTrans.referencedDictField();
+        Dialog      dialog;
+        DialogField enumField;
+
+        if (!dictField || dictField.baseType() != Types::Enum)
+        {
+            throw error("@OLK_EDSLabel:NotAnEnumField");
+        }
+
+        dialog    = new Dialog("@OLK_EDSLabel:SetEnumValue");
+        enumField = dialog.addFieldValue(enumId2Name(dictField.enumId()), str2Int(OLK_EnvironmentDataSetupTrans.Value), "@OLK_EDSLabel:EnumValueLabel");
+
+        if (dialog.run())
+        {
+            OLK_EnvironmentDataSetupTrans.Value = int2Str(any2Int(enumField.value()));
+            OLK_EnvironmentDataSetupTrans_ds.refresh();
+        }
+    }
+
+]]></Source>
+			</Method>
 		</Methods>
-		<DataSources xmlns="" />
-		<DataControls xmlns="" />
+		<DataSources xmlns="">
+			<DataSource>
+				<Name>OLK_EnvironmentDataSetupTrans</Name>
+				<Methods>
+					<Method>
+						<Name>active</Name>
+						<Source><![CDATA[
+        public int active()
+        {
+            int ret = super();
+
+            SetEnumValue.enabled(OLK_EnvironmentDataSetupTrans.isEnumField());
+
+            return ret;
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+				<Fields />
+			</DataSource>
+		</DataSources>
+		<DataControls xmlns="">
+			<Control>
+				<Name>SetEnumValue</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+        public void clicked()
+        {
+            super();
+
+            element.setEnumValue();
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>Grid_dataFieldName</Name>
+				<Type>String</Type>
+				<Methods>
+					<Method>
+						<Name>lookup</Name>
+						<Source><![CDATA[
+        public void lookup()
+        {
+            OLK_EnvironmentDataSetupTrans.lookupDataFieldName(this);
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>Header_dataFieldName</Name>
+				<Type>String</Type>
+				<Methods>
+					<Method>
+						<Name>lookup</Name>
+						<Source><![CDATA[
+        public void lookup()
+        {
+            OLK_EnvironmentDataSetupTrans.lookupDataFieldName(this);
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>FieldInfo_dataFieldName</Name>
+				<Type>String</Type>
+				<Methods>
+					<Method>
+						<Name>lookup</Name>
+						<Source><![CDATA[
+        public void lookup()
+        {
+            OLK_EnvironmentDataSetupTrans.lookupDataFieldName(this);
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+		</DataControls>
 		<Members xmlns="" />
 	</SourceCode>
 	<DataSources>
@@ -67,8 +184,11 @@ public class OLK_EnvironmentDataSetupTrans extends FormRun
 	</DataSources>
 	<Design>
 		<Caption xmlns="">@OLK_EDSLabel:DataSetup</Caption>
-		<Pattern xmlns="">Custom</Pattern>
-		<PatternVersion xmlns="">1.1</PatternVersion>
+		<DataSource xmlns="">OLK_EnvironmentDataSetupTrans</DataSource>
+		<Pattern xmlns="">SimpleListDetails-Grid</Pattern>
+		<PatternVersion xmlns="">1.4</PatternVersion>
+		<Style xmlns="">SimpleListDetails</Style>
+		<TitleDataSource xmlns="">OLK_EnvironmentDataSetupTrans</TitleDataSource>
 		<Controls xmlns="">
 			<AxFormControl xmlns=""
 				i:type="AxFormActionPaneControl">
@@ -76,21 +196,44 @@ public class OLK_EnvironmentDataSetupTrans extends FormRun
 				<Type>ActionPane</Type>
 				<FormControlExtension
 					i:nil="true" />
-				<Controls />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormButtonGroupControl">
+						<Name>ButtonGroup</Name>
+						<Type>ButtonGroup</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormButtonControl">
+								<Name>SetEnumValue</Name>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<HelpText>@OLK_EDSLabel:SetEnumValueHelp</HelpText>
+								<Type>Button</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<NeedsRecord>Yes</NeedsRecord>
+								<Text>@OLK_EDSLabel:SetEnumValue</Text>
+							</AxFormControl>
+						</Controls>
+					</AxFormControl>
+				</Controls>
 				<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
 			</AxFormControl>
 			<AxFormControl xmlns=""
 				i:type="AxFormGroupControl">
-				<Name>CustomFilterGroup</Name>
-				<Pattern>CustomAndQuickFilters</Pattern>
-				<PatternVersion>1.1</PatternVersion>
+				<Name>NavigationList</Name>
+				<AutoDeclaration>Yes</AutoDeclaration>
+				<HeightMode>SizeToAvailable</HeightMode>
 				<Type>Group</Type>
-				<WidthMode>SizeToAvailable</WidthMode>
+				<Width>300</Width>
+				<WidthMode>Manual</WidthMode>
 				<FormControlExtension
 					i:nil="true" />
 				<Controls>
 					<AxFormControl>
 						<Name>QuickFilter</Name>
+						<WidthMode>SizeToAvailable</WidthMode>
 						<FormControlExtension>
 							<Name>QuickFilterControl</Name>
 							<ExtensionComponents />
@@ -101,32 +244,123 @@ public class OLK_EnvironmentDataSetupTrans extends FormRun
 									<Value>Grid</Value>
 								</AxFormControlExtensionProperty>
 								<AxFormControlExtensionProperty>
-									<Name>placeholderText</Name>
+									<Name>defaultColumnName</Name>
 									<Type>String</Type>
 								</AxFormControlExtensionProperty>
 								<AxFormControlExtensionProperty>
-									<Name>defaultColumnName</Name>
+									<Name>placeholderText</Name>
 									<Type>String</Type>
 								</AxFormControlExtensionProperty>
 							</ExtensionProperties>
 						</FormControlExtension>
 					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormGridControl">
+						<Name>Grid</Name>
+						<AllowEdit>No</AllowEdit>
+						<Type>Grid</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_EnvironmentId</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>EnvironmentId</DataField>
+								<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_Description</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>Description</DataField>
+								<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_RefDataAreaId</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>RefDataAreaId</DataField>
+								<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_dataTableName</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataMethod>dataTableName</DataMethod>
+								<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+								<Label>@OLK_EDSLabel:TableName</Label>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_dataFieldName</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataMethod>dataFieldName</DataMethod>
+								<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+								<Label>@OLK_EDSLabel:FieldName</Label>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormCheckBoxControl">
+								<Name>Grid_EncryptedField</Name>
+								<Type>CheckBox</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>EncryptedField</DataField>
+								<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_editValue</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataMethod>editValue</DataMethod>
+								<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+								<Label>@OLK_EDSLabel:Value</Label>
+							</AxFormControl>
+						</Controls>
+						<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+						<MultiSelect>No</MultiSelect>
+						<ShowRowLabels>No</ShowRowLabels>
+						<Style>Tabular</Style>
+					</AxFormControl>
 				</Controls>
-				<ArrangeMethod>HorizontalLeft</ArrangeMethod>
 				<FrameType>None</FrameType>
-				<Style>CustomFilter</Style>
-				<ViewEditMode>Edit</ViewEditMode>
+				<Style>SidePanel</Style>
 			</AxFormControl>
 			<AxFormControl xmlns=""
-				i:type="AxFormGridControl">
-				<Name>Grid</Name>
-				<Type>Grid</Type>
+				i:type="AxFormGroupControl">
+				<Name>VerticalSplitter</Name>
+				<AutoDeclaration>Yes</AutoDeclaration>
+				<Type>Group</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls />
+				<Style>SplitterVerticalContainer</Style>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>DetailsHeader</Name>
+				<Pattern>FieldsFieldGroups</Pattern>
+				<PatternVersion>1.1</PatternVersion>
+				<Type>Group</Type>
+				<WidthMode>SizeToAvailable</WidthMode>
 				<FormControlExtension
 					i:nil="true" />
 				<Controls>
 					<AxFormControl xmlns=""
 						i:type="AxFormStringControl">
-						<Name>OLK_EnvironmentDataSetupTrans_EnvironmentId</Name>
+						<Name>Header_EnvironmentId</Name>
 						<Type>String</Type>
 						<FormControlExtension
 							i:nil="true" />
@@ -135,7 +369,7 @@ public class OLK_EnvironmentDataSetupTrans extends FormRun
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormStringControl">
-						<Name>OLK_EnvironmentDataSetupTrans_Description</Name>
+						<Name>Header_Description</Name>
 						<Type>String</Type>
 						<FormControlExtension
 							i:nil="true" />
@@ -144,7 +378,7 @@ public class OLK_EnvironmentDataSetupTrans extends FormRun
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormStringControl">
-						<Name>OLK_EnvironmentDataSetupTrans_RefDataAreaId</Name>
+						<Name>Header_RefDataAreaId</Name>
 						<Type>String</Type>
 						<FormControlExtension
 							i:nil="true" />
@@ -153,69 +387,65 @@ public class OLK_EnvironmentDataSetupTrans extends FormRun
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormStringControl">
-						<Name>OLK_EnvironmentDataSetupTrans_tableName</Name>
+						<Name>Header_dataTableName</Name>
 						<Type>String</Type>
 						<FormControlExtension
 							i:nil="true" />
-						<DataMethod>tableName</DataMethod>
+						<DataMethod>dataTableName</DataMethod>
 						<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+						<Label>@OLK_EDSLabel:TableName</Label>
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormStringControl">
-						<Name>OLK_EnvironmentDataSetupTrans_fieldName</Name>
+						<Name>Header_dataFieldName</Name>
 						<Type>String</Type>
 						<FormControlExtension
 							i:nil="true" />
-						<DataMethod>fieldName</DataMethod>
+						<DataMethod>dataFieldName</DataMethod>
 						<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
-					</AxFormControl>
-					<AxFormControl xmlns=""
-						i:type="AxFormCheckBoxControl">
-						<Name>OLK_EnvironmentDataSetupTrans_EncryptedField</Name>
-						<Type>CheckBox</Type>
-						<FormControlExtension
-							i:nil="true" />
-						<DataField>EncryptedField</DataField>
-						<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+						<Label>@OLK_EDSLabel:FieldName</Label>
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormStringControl">
-						<Name>OLK_EnvironmentDataSetupTrans_Value</Name>
+						<Name>Header_editValue</Name>
 						<Type>String</Type>
 						<FormControlExtension
 							i:nil="true" />
-						<DataField>Value</DataField>
+						<DataMethod>editValue</DataMethod>
 						<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+						<Label>@OLK_EDSLabel:Value</Label>
 					</AxFormControl>
 				</Controls>
-				<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
-				<Style>Tabular</Style>
+				<ColumnsMode>Fill</ColumnsMode>
+				<FrameType>None</FrameType>
 			</AxFormControl>
 			<AxFormControl xmlns=""
 				i:type="AxFormTabControl">
 				<Name>DetailsTab</Name>
 				<Type>Tab</Type>
-				<WidthMode>SizeToAvailable</WidthMode>
 				<FormControlExtension
 					i:nil="true" />
 				<Controls>
 					<AxFormControl xmlns=""
 						i:type="AxFormTabPageControl">
-						<Name>ReferenceTab</Name>
+						<Name>GeneralTab</Name>
+						<Pattern>FieldsFieldGroups</Pattern>
+						<PatternVersion>1.1</PatternVersion>
 						<Type>TabPage</Type>
 						<FormControlExtension
 							i:nil="true" />
 						<Controls>
 							<AxFormControl xmlns=""
 								i:type="AxFormGroupControl">
-								<Name>ReferenceTabGroup</Name>
+								<Name>TableInfo</Name>
 								<Type>Group</Type>
 								<FormControlExtension
 									i:nil="true" />
 								<Controls>
 									<AxFormControl xmlns=""
 										i:type="AxFormIntegerControl">
-										<Name>Ref_RefTableId</Name>
+										<Name>TableInfo_RefTableId</Name>
+										<AllowEdit>No</AllowEdit>
 										<Type>Integer</Type>
 										<FormControlExtension
 											i:nil="true" />
@@ -224,7 +454,17 @@ public class OLK_EnvironmentDataSetupTrans extends FormRun
 									</AxFormControl>
 									<AxFormControl xmlns=""
 										i:type="AxFormStringControl">
-										<Name>Ref_tableLabel</Name>
+										<Name>TableInfo_dataTableName</Name>
+										<Type>String</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataMethod>dataTableName</DataMethod>
+										<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+										<Label>@OLK_EDSLabel:TableName</Label>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormStringControl">
+										<Name>TableInfo_tableLabel</Name>
 										<Type>String</Type>
 										<FormControlExtension
 											i:nil="true" />
@@ -232,9 +472,20 @@ public class OLK_EnvironmentDataSetupTrans extends FormRun
 										<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
 										<Label>@OLK_EDSLabel:TableLabel</Label>
 									</AxFormControl>
+								</Controls>
+								<Caption>@OLK_EDSLabel:TableInfo</Caption>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormGroupControl">
+								<Name>FieldInfo</Name>
+								<Type>Group</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Controls>
 									<AxFormControl xmlns=""
 										i:type="AxFormIntegerControl">
-										<Name>Ref_FieldId</Name>
+										<Name>FieldInfo_FieldId</Name>
+										<AllowEdit>No</AllowEdit>
 										<Type>Integer</Type>
 										<FormControlExtension
 											i:nil="true" />
@@ -243,7 +494,17 @@ public class OLK_EnvironmentDataSetupTrans extends FormRun
 									</AxFormControl>
 									<AxFormControl xmlns=""
 										i:type="AxFormStringControl">
-										<Name>Ref_fieldLabel</Name>
+										<Name>FieldInfo_dataFieldName</Name>
+										<Type>String</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataMethod>dataFieldName</DataMethod>
+										<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+										<Label>@OLK_EDSLabel:FieldName</Label>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormStringControl">
+										<Name>FieldInfo_fieldLabel</Name>
 										<Type>String</Type>
 										<FormControlExtension
 											i:nil="true" />
@@ -251,18 +512,29 @@ public class OLK_EnvironmentDataSetupTrans extends FormRun
 										<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
 										<Label>@OLK_EDSLabel:FieldLabel</Label>
 									</AxFormControl>
+								</Controls>
+								<Caption>@OLK_EDSLabel:FieldInfo</Caption>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormGroupControl">
+								<Name>ValueGroup</Name>
+								<Type>Group</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Controls>
 									<AxFormControl xmlns=""
-										i:type="AxFormInt64Control">
-										<Name>Ref_RefRecId</Name>
-										<Type>Int64</Type>
+										i:type="AxFormStringControl">
+										<Name>ValueGroup_editValue</Name>
+										<Type>String</Type>
 										<FormControlExtension
 											i:nil="true" />
-										<DataField>RefRecId</DataField>
+										<DataMethod>editValue</DataMethod>
 										<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+										<Label>@OLK_EDSLabel:Value</Label>
 									</AxFormControl>
 									<AxFormControl xmlns=""
 										i:type="AxFormStringControl">
-										<Name>Ref_enumValueLabel</Name>
+										<Name>ValueGroup_enumValueLabel</Name>
 										<Type>String</Type>
 										<FormControlExtension
 											i:nil="true" />
@@ -271,28 +543,59 @@ public class OLK_EnvironmentDataSetupTrans extends FormRun
 										<Label>@OLK_EDSLabel:EnumValueLabel</Label>
 									</AxFormControl>
 								</Controls>
-								<FrameType>None</FrameType>
+								<Caption>@OLK_EDSLabel:Value</Caption>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormGroupControl">
+								<Name>Reference</Name>
+								<Type>Group</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Controls>
+									<AxFormControl xmlns=""
+										i:type="AxFormStringControl">
+										<Name>Reference_RefDataAreaId</Name>
+										<Type>String</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>RefDataAreaId</DataField>
+										<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormInt64Control">
+										<Name>Reference_RefRecId</Name>
+										<Type>Int64</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>RefRecId</DataField>
+										<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
+									</AxFormControl>
+								</Controls>
+								<Caption>@OLK_EDSLabel:Reference</Caption>
 							</AxFormControl>
 						</Controls>
-						<Caption>@OLK_EDSLabel:Reference</Caption>
+						<ColumnsMode>Fill</ColumnsMode>
+						<Caption>@OLK_EDSLabel:General</Caption>
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormTabPageControl">
 						<Name>EncryptedFieldTab</Name>
+						<Pattern>FieldsFieldGroups</Pattern>
+						<PatternVersion>1.1</PatternVersion>
 						<Type>TabPage</Type>
 						<FormControlExtension
 							i:nil="true" />
 						<Controls>
 							<AxFormControl xmlns=""
 								i:type="AxFormGroupControl">
-								<Name>EncryptedFieldTabGroup</Name>
+								<Name>EncryptedField</Name>
 								<Type>Group</Type>
 								<FormControlExtension
 									i:nil="true" />
 								<Controls>
 									<AxFormControl xmlns=""
 										i:type="AxFormCheckBoxControl">
-										<Name>Enc_EncryptedField</Name>
+										<Name>EncryptedField_EncryptedField</Name>
 										<Type>CheckBox</Type>
 										<FormControlExtension
 											i:nil="true" />
@@ -301,7 +604,7 @@ public class OLK_EnvironmentDataSetupTrans extends FormRun
 									</AxFormControl>
 									<AxFormControl xmlns=""
 										i:type="AxFormStringControl">
-										<Name>Enc_EncryptedMethodName</Name>
+										<Name>EncryptedField_EncryptedMethodName</Name>
 										<Type>String</Type>
 										<FormControlExtension
 											i:nil="true" />
@@ -309,9 +612,10 @@ public class OLK_EnvironmentDataSetupTrans extends FormRun
 										<DataSource>OLK_EnvironmentDataSetupTrans</DataSource>
 									</AxFormControl>
 								</Controls>
-								<FrameType>None</FrameType>
+								<Caption>@OLK_EDSLabel:EncryptedField</Caption>
 							</AxFormControl>
 						</Controls>
+						<ColumnsMode>Fill</ColumnsMode>
 						<Caption>@OLK_EDSLabel:EncryptedField</Caption>
 					</AxFormControl>
 				</Controls>

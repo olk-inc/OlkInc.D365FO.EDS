@@ -49,7 +49,7 @@ public class OLK_EnvironmentDataSetupTrans extends common
     [SysClientCacheDataMethodAttribute(true)]
     public display TableName tableName()
     {
-        return tableId2Name(this.RefTableId);
+        return this.RefTableId ? tableId2Name(this.RefTableId) : '';
     }
 
 ]]></Source>
@@ -63,7 +63,7 @@ public class OLK_EnvironmentDataSetupTrans extends common
     [SysClientCacheDataMethodAttribute(true)]
     public display Name tableLabel()
     {
-        return tableId2PName(this.RefTableId);
+        return this.RefTableId ? tableId2PName(this.RefTableId) : '';
     }
 
 ]]></Source>
@@ -77,7 +77,12 @@ public class OLK_EnvironmentDataSetupTrans extends common
     [SysClientCacheDataMethodAttribute(true)]
     public display FieldName fieldName()
     {
-        return this.EncryptedField ? this.EncryptedMethodName : fieldId2Name(this.RefTableId, this.FieldId);
+        if (this.EncryptedField)
+        {
+            return this.EncryptedMethodName;
+        }
+
+        return (this.RefTableId && this.FieldId) ? fieldId2Name(this.RefTableId, this.FieldId) : '';
     }
 
 ]]></Source>
@@ -112,6 +117,330 @@ public class OLK_EnvironmentDataSetupTrans extends common
         }
 
         return '';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>dataTableName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the referenced table by its AOT name.
+    /// </summary>
+    /// <param name = "_set">true when the value is set.</param>
+    /// <param name = "_name">The table name.</param>
+    /// <returns>The AOT name of the referenced table.</returns>
+    public edit TableName dataTableName(boolean _set, TableName _name)
+    {
+        if (_set)
+        {
+            TableId tableId = _name ? tableName2Id(_name) : 0;
+
+            if (_name && !tableId)
+            {
+                checkFailed(strFmt("@OLK_EDSLabel:TableNotFound", _name));
+            }
+            else if (tableId != this.RefTableId)
+            {
+                this.RefTableId          = tableId;
+                this.FieldId             = 0;
+                this.EncryptedMethodName = '';
+                this.initRefDataAreaId();
+            }
+        }
+
+        return this.tableName();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>dataFieldName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the referenced field by its AOT name, or the edit method for encrypted fields.
+    /// </summary>
+    /// <param name = "_set">true when the value is set.</param>
+    /// <param name = "_name">The field name, or the edit method name for encrypted fields.</param>
+    /// <returns>The AOT name of the referenced field or edit method.</returns>
+    public edit FieldName dataFieldName(boolean _set, FieldName _name)
+    {
+        if (_set)
+        {
+            if (this.EncryptedField)
+            {
+                this.FieldId             = 0;
+                this.EncryptedMethodName = _name;
+            }
+            else
+            {
+                FieldId fieldId = (_name && this.RefTableId) ? fieldName2Id(this.RefTableId, _name) : 0;
+
+                if (_name && !fieldId)
+                {
+                    checkFailed(strFmt("@OLK_EDSLabel:FieldNotFound", _name, this.tableName()));
+                }
+                else
+                {
+                    this.FieldId = fieldId;
+                }
+            }
+        }
+
+        return this.fieldName();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>editValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the value written to the field; values of encrypted fields are masked.
+    /// </summary>
+    /// <param name = "_set">true when the value is set.</param>
+    /// <param name = "_value">The value.</param>
+    /// <returns>The value, or a mask for encrypted fields.</returns>
+    public edit OLK_EdsValue editValue(boolean _set, OLK_EdsValue _value)
+    {
+        if (_set)
+        {
+            this.Value = this.normalizeValue(_value);
+        }
+
+        if (this.EncryptedField && this.Value)
+        {
+            return '********';
+        }
+
+        return this.Value;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>normalizeValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Stores enum values that are entered as a symbol or label as their integer value.
+    /// </summary>
+    private OLK_EdsValue normalizeValue(OLK_EdsValue _value)
+    {
+        DictField dictField = this.referencedDictField();
+
+        if (dictField && dictField.baseType() == Types::Enum && _value)
+        {
+            DictEnum    dictEnum = new DictEnum(dictField.enumId());
+            str         value    = strLTrim(strRTrim(_value));
+            int         enumValue;
+
+            if (value == int2Str(str2Int(value)))
+            {
+                return value;
+            }
+
+            enumValue = dictEnum.symbol2Value(value);
+
+            if (enumValue == 255)
+            {
+                // Not a symbol, so try the label.
+                for (int i = 0; i < dictEnum.values(); i++)
+                {
+                    if (dictEnum.index2Label(i) == value)
+                    {
+                        return int2Str(dictEnum.index2Value(i));
+                    }
+                }
+
+                return _value;
+            }
+
+            return int2Str(enumValue);
+        }
+
+        return _value;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>referencedDictField</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The referenced field; null for encrypted fields or when no field is selected.
+    /// </summary>
+    public DictField referencedDictField()
+    {
+        if (this.EncryptedField || !this.RefTableId || !this.FieldId)
+        {
+            return null;
+        }
+
+        return new DictField(this.RefTableId, this.FieldId);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isEnumField</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks whether the referenced field is an enum field.
+    /// </summary>
+    public boolean isEnumField()
+    {
+        DictField dictField = this.referencedDictField();
+
+        return dictField && dictField.baseType() == Types::Enum;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>initRefDataAreaId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Sets the company for company specific tables and clears it for shared tables.
+    /// </summary>
+    private void initRefDataAreaId()
+    {
+        DictTable dictTable = this.RefTableId ? new DictTable(this.RefTableId) : null;
+
+        if (dictTable && dictTable.dataPrCompany())
+        {
+            if (!this.RefDataAreaId)
+            {
+                this.RefDataAreaId = curExt();
+            }
+        }
+        else
+        {
+            this.RefDataAreaId = '';
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>lookupDataFieldName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Looks up the fields of the referenced table.
+    /// </summary>
+    /// <param name = "_control">The control that shows the field name.</param>
+    public void lookupDataFieldName(FormStringControl _control)
+    {
+        SysTableLookup      sysTableLookup;
+        TmpSysTableField    tmpSysTableField;
+        Query               query = new Query();
+
+        if (!this.RefTableId)
+        {
+            return;
+        }
+
+        TmpSysTableField::findTableFields(tmpSysTableField, this.RefTableId);
+
+        query.addDataSource(tableNum(TmpSysTableField));
+
+        sysTableLookup = SysTableLookup::newParameters(tableNum(TmpSysTableField), _control);
+        sysTableLookup.addLookupfield(fieldNum(TmpSysTableField, FieldName), true);
+        sysTableLookup.addLookupfield(fieldNum(TmpSysTableField, FieldLabel));
+        sysTableLookup.parmQuery(query);
+        sysTableLookup.parmTmpBuffer(tmpSysTableField);
+        sysTableLookup.performFormLookup();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>modifiedField</Name>
+				<Source><![CDATA[
+    public void modifiedField(FieldId _fieldId)
+    {
+        super(_fieldId);
+
+        switch (_fieldId)
+        {
+            case fieldNum(OLK_EnvironmentDataSetupTrans, EncryptedField):
+                this.FieldId             = 0;
+                this.EncryptedMethodName = '';
+                break;
+
+            case fieldNum(OLK_EnvironmentDataSetupTrans, RefTableId):
+                this.FieldId             = 0;
+                this.EncryptedMethodName = '';
+                this.initRefDataAreaId();
+                break;
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateWrite</Name>
+				<Source><![CDATA[
+    public boolean validateWrite()
+    {
+        boolean     ret = super();
+        DictTable   dictTable = this.RefTableId ? new DictTable(this.RefTableId) : null;
+
+        if (ret && !dictTable)
+        {
+            ret = checkFailed(strFmt("@OLK_EDSLabel:TableNotFound", this.RefTableId));
+        }
+
+        if (ret)
+        {
+            if (this.EncryptedField)
+            {
+                if (!this.EncryptedMethodName || !tableHasMethod(dictTable, this.EncryptedMethodName))
+                {
+                    ret = checkFailed(strFmt("@OLK_EDSLabel:FieldNotFound", this.EncryptedMethodName, dictTable.name()));
+                }
+            }
+            else if (!this.referencedDictField())
+            {
+                ret = checkFailed(strFmt("@OLK_EDSLabel:FieldNotFound", this.FieldId, dictTable.name()));
+            }
+        }
+
+        if (ret && dictTable.dataPrCompany() && !this.RefDataAreaId)
+        {
+            ret = checkFailed("@OLK_EDSLabel:CompanyEmpty");
+        }
+
+        if (ret && !this.referencedRecordExists())
+        {
+            ret = checkFailed(strFmt("@OLK_EDSLabel:RecordNotFound", dictTable.name(), this.RefRecId));
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>referencedRecordExists</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks that the referenced record exists in the company of the line.
+    /// </summary>
+    public boolean referencedRecordExists()
+    {
+        boolean found;
+
+        if (!this.RefRecId)
+        {
+            return false;
+        }
+
+        changecompany(this.RefDataAreaId ? this.RefDataAreaId : curExt())
+        {
+            found = this.findReferencedRecord().RecId != 0;
+        }
+
+        return found;
     }
 
 ]]></Source>

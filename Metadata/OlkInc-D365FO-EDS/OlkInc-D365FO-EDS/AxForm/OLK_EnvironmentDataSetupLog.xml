@@ -25,6 +25,10 @@ public class OLK_EnvironmentDataSetupLog extends FormRun
         {
             super();
 
+            // The log is written by the execution only.
+            this.allowCreate(false);
+            this.allowEdit(false);
+
             this.queryBuildDataSource().addSortField(fieldNum(OLK_EnvironmentDataSetupLog, CreatedDateTime), SortOrder::Descending);
         }
 
@@ -104,8 +108,11 @@ public class OLK_EnvironmentDataSetupLog extends FormRun
 	</DataSources>
 	<Design>
 		<Caption xmlns="">@OLK_EDSLabel:Log</Caption>
-		<Pattern xmlns="">Custom</Pattern>
-		<PatternVersion xmlns="">1.1</PatternVersion>
+		<DataSource xmlns="">OLK_EnvironmentDataSetupLog</DataSource>
+		<Pattern xmlns="">SimpleListDetails-Grid</Pattern>
+		<PatternVersion xmlns="">1.4</PatternVersion>
+		<Style xmlns="">SimpleListDetails</Style>
+		<TitleDataSource xmlns="">OLK_EnvironmentDataSetupLog</TitleDataSource>
 		<Controls xmlns="">
 			<AxFormControl xmlns=""
 				i:type="AxFormActionPaneControl">
@@ -113,21 +120,32 @@ public class OLK_EnvironmentDataSetupLog extends FormRun
 				<Type>ActionPane</Type>
 				<FormControlExtension
 					i:nil="true" />
-				<Controls />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormButtonGroupControl">
+						<Name>ButtonGroup</Name>
+						<Type>ButtonGroup</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls />
+					</AxFormControl>
+				</Controls>
 				<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
 			</AxFormControl>
 			<AxFormControl xmlns=""
 				i:type="AxFormGroupControl">
-				<Name>CustomFilterGroup</Name>
-				<Pattern>CustomAndQuickFilters</Pattern>
-				<PatternVersion>1.1</PatternVersion>
+				<Name>NavigationList</Name>
+				<AutoDeclaration>Yes</AutoDeclaration>
+				<HeightMode>SizeToAvailable</HeightMode>
 				<Type>Group</Type>
-				<WidthMode>SizeToAvailable</WidthMode>
+				<Width>300</Width>
+				<WidthMode>Manual</WidthMode>
 				<FormControlExtension
 					i:nil="true" />
 				<Controls>
 					<AxFormControl>
 						<Name>QuickFilter</Name>
+						<WidthMode>SizeToAvailable</WidthMode>
 						<FormControlExtension>
 							<Name>QuickFilterControl</Name>
 							<ExtensionComponents />
@@ -138,41 +156,122 @@ public class OLK_EnvironmentDataSetupLog extends FormRun
 									<Value>Grid</Value>
 								</AxFormControlExtensionProperty>
 								<AxFormControlExtensionProperty>
-									<Name>placeholderText</Name>
+									<Name>defaultColumnName</Name>
 									<Type>String</Type>
 								</AxFormControlExtensionProperty>
 								<AxFormControlExtensionProperty>
-									<Name>defaultColumnName</Name>
+									<Name>placeholderText</Name>
 									<Type>String</Type>
 								</AxFormControlExtensionProperty>
 							</ExtensionProperties>
 						</FormControlExtension>
 					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormGridControl">
+						<Name>Grid</Name>
+						<AllowEdit>No</AllowEdit>
+						<Type>Grid</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormDateTimeControl">
+								<Name>Grid_CreatedDateTime</Name>
+								<Type>DateTime</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>CreatedDateTime</DataField>
+								<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_EnvironmentId</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>EnvironmentId</DataField>
+								<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_RefDataAreaId</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>RefDataAreaId</DataField>
+								<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormComboBoxControl">
+								<Name>Grid_Type</Name>
+								<Type>ComboBox</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>Type</DataField>
+								<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
+								<Items />
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_Id</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>Id</DataField>
+								<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_Description</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>Description</DataField>
+								<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormComboBoxControl">
+								<Name>Grid_Status</Name>
+								<Type>ComboBox</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>Status</DataField>
+								<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
+								<Items />
+							</AxFormControl>
+						</Controls>
+						<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
+						<MultiSelect>No</MultiSelect>
+						<ShowRowLabels>No</ShowRowLabels>
+						<Style>Tabular</Style>
+					</AxFormControl>
 				</Controls>
-				<ArrangeMethod>HorizontalLeft</ArrangeMethod>
 				<FrameType>None</FrameType>
-				<Style>CustomFilter</Style>
-				<ViewEditMode>Edit</ViewEditMode>
+				<Style>SidePanel</Style>
 			</AxFormControl>
 			<AxFormControl xmlns=""
-				i:type="AxFormGridControl">
-				<Name>Grid</Name>
-				<Type>Grid</Type>
+				i:type="AxFormGroupControl">
+				<Name>VerticalSplitter</Name>
+				<AutoDeclaration>Yes</AutoDeclaration>
+				<Type>Group</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls />
+				<Style>SplitterVerticalContainer</Style>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>DetailsHeader</Name>
+				<Pattern>FieldsFieldGroups</Pattern>
+				<PatternVersion>1.1</PatternVersion>
+				<Type>Group</Type>
+				<WidthMode>SizeToAvailable</WidthMode>
 				<FormControlExtension
 					i:nil="true" />
 				<Controls>
 					<AxFormControl xmlns=""
-						i:type="AxFormDateTimeControl">
-						<Name>OLK_EnvironmentDataSetupLog_CreatedDateTime</Name>
-						<Type>DateTime</Type>
-						<FormControlExtension
-							i:nil="true" />
-						<DataField>CreatedDateTime</DataField>
-						<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
-					</AxFormControl>
-					<AxFormControl xmlns=""
 						i:type="AxFormStringControl">
-						<Name>OLK_EnvironmentDataSetupLog_EnvironmentId</Name>
+						<Name>Header_EnvironmentId</Name>
 						<Type>String</Type>
 						<FormControlExtension
 							i:nil="true" />
@@ -181,7 +280,7 @@ public class OLK_EnvironmentDataSetupLog extends FormRun
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormStringControl">
-						<Name>OLK_EnvironmentDataSetupLog_RefDataAreaId</Name>
+						<Name>Header_RefDataAreaId</Name>
 						<Type>String</Type>
 						<FormControlExtension
 							i:nil="true" />
@@ -190,16 +289,17 @@ public class OLK_EnvironmentDataSetupLog extends FormRun
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormComboBoxControl">
-						<Name>OLK_EnvironmentDataSetupLog_Type</Name>
+						<Name>Header_Type</Name>
 						<Type>ComboBox</Type>
 						<FormControlExtension
 							i:nil="true" />
 						<DataField>Type</DataField>
 						<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
+						<Items />
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormStringControl">
-						<Name>OLK_EnvironmentDataSetupLog_Id</Name>
+						<Name>Header_Id</Name>
 						<Type>String</Type>
 						<FormControlExtension
 							i:nil="true" />
@@ -208,7 +308,7 @@ public class OLK_EnvironmentDataSetupLog extends FormRun
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormStringControl">
-						<Name>OLK_EnvironmentDataSetupLog_Description</Name>
+						<Name>Header_Description</Name>
 						<Type>String</Type>
 						<FormControlExtension
 							i:nil="true" />
@@ -217,42 +317,71 @@ public class OLK_EnvironmentDataSetupLog extends FormRun
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormComboBoxControl">
-						<Name>OLK_EnvironmentDataSetupLog_Status</Name>
+						<Name>Header_Status</Name>
 						<Type>ComboBox</Type>
 						<FormControlExtension
 							i:nil="true" />
 						<DataField>Status</DataField>
 						<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
+						<Items />
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormDateTimeControl">
+						<Name>Header_CreatedDateTime</Name>
+						<Type>DateTime</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>CreatedDateTime</DataField>
+						<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>Header_CreatedBy</Name>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>CreatedBy</DataField>
+						<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
 					</AxFormControl>
 				</Controls>
-				<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
-				<Style>Tabular</Style>
+				<ColumnsMode>Fill</ColumnsMode>
+				<FrameType>None</FrameType>
 			</AxFormControl>
 			<AxFormControl xmlns=""
 				i:type="AxFormTabControl">
 				<Name>DetailsTab</Name>
 				<Type>Tab</Type>
-				<WidthMode>SizeToAvailable</WidthMode>
 				<FormControlExtension
 					i:nil="true" />
 				<Controls>
 					<AxFormControl xmlns=""
 						i:type="AxFormTabPageControl">
-						<Name>ReferenceTab</Name>
+						<Name>GeneralTab</Name>
+						<Pattern>FieldsFieldGroups</Pattern>
+						<PatternVersion>1.1</PatternVersion>
 						<Type>TabPage</Type>
 						<FormControlExtension
 							i:nil="true" />
 						<Controls>
 							<AxFormControl xmlns=""
 								i:type="AxFormGroupControl">
-								<Name>ReferenceTabGroup</Name>
+								<Name>Reference</Name>
 								<Type>Group</Type>
 								<FormControlExtension
 									i:nil="true" />
 								<Controls>
 									<AxFormControl xmlns=""
+										i:type="AxFormStringControl">
+										<Name>Reference_RefDataAreaId</Name>
+										<Type>String</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>RefDataAreaId</DataField>
+										<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
+									</AxFormControl>
+									<AxFormControl xmlns=""
 										i:type="AxFormIntegerControl">
-										<Name>Ref_RefTableId</Name>
+										<Name>Reference_RefTableId</Name>
 										<Type>Integer</Type>
 										<FormControlExtension
 											i:nil="true" />
@@ -260,8 +389,18 @@ public class OLK_EnvironmentDataSetupLog extends FormRun
 										<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
 									</AxFormControl>
 									<AxFormControl xmlns=""
+										i:type="AxFormStringControl">
+										<Name>Reference_tableName</Name>
+										<Type>String</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataMethod>tableName</DataMethod>
+										<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
+										<Label>@OLK_EDSLabel:TableName</Label>
+									</AxFormControl>
+									<AxFormControl xmlns=""
 										i:type="AxFormIntegerControl">
-										<Name>Ref_RefFieldId</Name>
+										<Name>Reference_RefFieldId</Name>
 										<Type>Integer</Type>
 										<FormControlExtension
 											i:nil="true" />
@@ -269,8 +408,18 @@ public class OLK_EnvironmentDataSetupLog extends FormRun
 										<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
 									</AxFormControl>
 									<AxFormControl xmlns=""
+										i:type="AxFormStringControl">
+										<Name>Reference_fieldName</Name>
+										<Type>String</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataMethod>fieldName</DataMethod>
+										<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
+										<Label>@OLK_EDSLabel:FieldName</Label>
+									</AxFormControl>
+									<AxFormControl xmlns=""
 										i:type="AxFormInt64Control">
-										<Name>Ref_RefRecId</Name>
+										<Name>Reference_RefRecId</Name>
 										<Type>Int64</Type>
 										<FormControlExtension
 											i:nil="true" />
@@ -278,28 +427,18 @@ public class OLK_EnvironmentDataSetupLog extends FormRun
 										<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
 									</AxFormControl>
 								</Controls>
-								<FrameType>None</FrameType>
+								<Caption>@OLK_EDSLabel:Reference</Caption>
 							</AxFormControl>
-						</Controls>
-						<Caption>@OLK_EDSLabel:Reference</Caption>
-					</AxFormControl>
-					<AxFormControl xmlns=""
-						i:type="AxFormTabPageControl">
-						<Name>ValuesTab</Name>
-						<Type>TabPage</Type>
-						<FormControlExtension
-							i:nil="true" />
-						<Controls>
 							<AxFormControl xmlns=""
 								i:type="AxFormGroupControl">
-								<Name>ValuesTabGroup</Name>
+								<Name>Values</Name>
 								<Type>Group</Type>
 								<FormControlExtension
 									i:nil="true" />
 								<Controls>
 									<AxFormControl xmlns=""
 										i:type="AxFormStringControl">
-										<Name>Val_ValueOrig</Name>
+										<Name>Values_ValueOrig</Name>
 										<Type>String</Type>
 										<FormControlExtension
 											i:nil="true" />
@@ -308,7 +447,7 @@ public class OLK_EnvironmentDataSetupLog extends FormRun
 									</AxFormControl>
 									<AxFormControl xmlns=""
 										i:type="AxFormStringControl">
-										<Name>Val_Value</Name>
+										<Name>Values_Value</Name>
 										<Type>String</Type>
 										<FormControlExtension
 											i:nil="true" />
@@ -316,41 +455,46 @@ public class OLK_EnvironmentDataSetupLog extends FormRun
 										<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
 									</AxFormControl>
 								</Controls>
-								<FrameType>None</FrameType>
+								<Caption>@OLK_EDSLabel:Values</Caption>
 							</AxFormControl>
 						</Controls>
-						<Caption>@OLK_EDSLabel:Values</Caption>
+						<ColumnsMode>Fill</ColumnsMode>
+						<Caption>@OLK_EDSLabel:General</Caption>
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormTabPageControl">
 						<Name>ErrorTab</Name>
+						<Pattern>FieldsFieldGroups</Pattern>
+						<PatternVersion>1.1</PatternVersion>
 						<Type>TabPage</Type>
 						<FormControlExtension
 							i:nil="true" />
 						<Controls>
 							<AxFormControl xmlns=""
 								i:type="AxFormGroupControl">
-								<Name>ErrorTabGroup</Name>
+								<Name>ErrorGroup</Name>
 								<Type>Group</Type>
 								<FormControlExtension
 									i:nil="true" />
 								<Controls>
 									<AxFormControl xmlns=""
 										i:type="AxFormStringControl">
-										<Name>Err_ErrorTxt</Name>
+										<Name>ErrorGroup_ErrorTxt</Name>
 										<Type>String</Type>
-										<WidthMode>SizeToAvailable</WidthMode>
 										<FormControlExtension
 											i:nil="true" />
 										<DataField>ErrorTxt</DataField>
 										<DataSource>OLK_EnvironmentDataSetupLog</DataSource>
+										<DisplayHeight>10</DisplayHeight>
+										<DisplayHeightMode>Fixed</DisplayHeightMode>
 										<MultiLine>Yes</MultiLine>
 									</AxFormControl>
 								</Controls>
-								<FrameType>None</FrameType>
+								<Caption>@OLK_EDSLabel:ErrorText</Caption>
 							</AxFormControl>
 						</Controls>
-						<Caption>@OLK_EDSLabel:ErrorText</Caption>
+						<ColumnsMode>Fill</ColumnsMode>
+						<Caption>@OLK_EDSLabel:Error</Caption>
 					</AxFormControl>
 				</Controls>
 				<Style>FastTabs</Style>

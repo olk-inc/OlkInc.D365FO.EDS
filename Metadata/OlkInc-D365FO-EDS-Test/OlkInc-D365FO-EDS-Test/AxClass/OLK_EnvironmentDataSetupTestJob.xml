@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupTestJob</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Runs the environment data setup tests in the client and shows the results in the infolog.
+/// </summary>
+/// <remarks>
+/// Open it with ?mi=SysClassRunner&cls=OLK_EnvironmentDataSetupTestJob, or run the tests from the Visual Studio Test Explorer.
+/// </remarks>
+internal final class OLK_EnvironmentDataSetupTestJob
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    public static void main(Args _args)
+    {
+        SysTestRunner runner = new SysTestRunner(classStr(OLK_EnvironmentDataSetupTest));
+        SysTestResult   result;
+        ListEnumerator  messages;
+
+        runner.run();
+        result = runner.getResult();
+
+        messages = result.getMessages().getEnumerator();
+        while (messages.moveNext())
+        {
+            warning(messages.current());
+        }
+
+        if (result.getFailureCount())
+        {
+            error(runner.getSummary());
+        }
+        else
+        {
+            info(runner.getSummary());
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

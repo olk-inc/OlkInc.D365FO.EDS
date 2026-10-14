@@ -7,7 +7,36 @@ public class OLK_EnvironmentDataSetupLog extends common
 {
 }
 ]]></Declaration>
-		<Methods />
+		<Methods>
+			<Method>
+				<Name>tableName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the AOT name of the table of a data line.
+    /// </summary>
+    [SysClientCacheDataMethodAttribute(true)]
+    public display TableName tableName()
+    {
+        return this.RefTableId ? tableId2Name(this.RefTableId) : '';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>fieldName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the AOT name of the field of a data line.
+    /// </summary>
+    [SysClientCacheDataMethodAttribute(true)]
+    public display FieldName fieldName()
+    {
+        return (this.RefTableId && this.RefFieldId) ? fieldId2Name(this.RefTableId, this.RefFieldId) : '';
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
 	</SourceCode>
 	<ConfigurationKey>OLK_EdsConfigKey</ConfigurationKey>
 	<DeveloperDocumentation>@OLK_EDSLabel:Log</DeveloperDocumentation>

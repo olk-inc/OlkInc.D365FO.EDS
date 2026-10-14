@@ -58,8 +58,11 @@ public class OLK_EnvironmentDataSetupSQL extends FormRun
 	</DataSources>
 	<Design>
 		<Caption xmlns="">@OLK_EDSLabel:SqlJobs</Caption>
-		<Pattern xmlns="">Custom</Pattern>
-		<PatternVersion xmlns="">1.1</PatternVersion>
+		<DataSource xmlns="">OLK_EnvironmentDataSetupSQL</DataSource>
+		<Pattern xmlns="">SimpleListDetails-Grid</Pattern>
+		<PatternVersion xmlns="">1.4</PatternVersion>
+		<Style xmlns="">SimpleListDetails</Style>
+		<TitleDataSource xmlns="">OLK_EnvironmentDataSetupSQL</TitleDataSource>
 		<Controls xmlns="">
 			<AxFormControl xmlns=""
 				i:type="AxFormActionPaneControl">
@@ -67,21 +70,32 @@ public class OLK_EnvironmentDataSetupSQL extends FormRun
 				<Type>ActionPane</Type>
 				<FormControlExtension
 					i:nil="true" />
-				<Controls />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormButtonGroupControl">
+						<Name>ButtonGroup</Name>
+						<Type>ButtonGroup</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls />
+					</AxFormControl>
+				</Controls>
 				<DataSource>OLK_EnvironmentDataSetupSQL</DataSource>
 			</AxFormControl>
 			<AxFormControl xmlns=""
 				i:type="AxFormGroupControl">
-				<Name>CustomFilterGroup</Name>
-				<Pattern>CustomAndQuickFilters</Pattern>
-				<PatternVersion>1.1</PatternVersion>
+				<Name>NavigationList</Name>
+				<AutoDeclaration>Yes</AutoDeclaration>
+				<HeightMode>SizeToAvailable</HeightMode>
 				<Type>Group</Type>
-				<WidthMode>SizeToAvailable</WidthMode>
+				<Width>300</Width>
+				<WidthMode>Manual</WidthMode>
 				<FormControlExtension
 					i:nil="true" />
 				<Controls>
 					<AxFormControl>
 						<Name>QuickFilter</Name>
+						<WidthMode>SizeToAvailable</WidthMode>
 						<FormControlExtension>
 							<Name>QuickFilterControl</Name>
 							<ExtensionComponents />
@@ -92,32 +106,102 @@ public class OLK_EnvironmentDataSetupSQL extends FormRun
 									<Value>Grid</Value>
 								</AxFormControlExtensionProperty>
 								<AxFormControlExtensionProperty>
-									<Name>placeholderText</Name>
+									<Name>defaultColumnName</Name>
 									<Type>String</Type>
 								</AxFormControlExtensionProperty>
 								<AxFormControlExtensionProperty>
-									<Name>defaultColumnName</Name>
+									<Name>placeholderText</Name>
 									<Type>String</Type>
 								</AxFormControlExtensionProperty>
 							</ExtensionProperties>
 						</FormControlExtension>
 					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormGridControl">
+						<Name>Grid</Name>
+						<AllowEdit>No</AllowEdit>
+						<Type>Grid</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_EnvironmentId</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>EnvironmentId</DataField>
+								<DataSource>OLK_EnvironmentDataSetupSQL</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_RefDataAreaId</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>RefDataAreaId</DataField>
+								<DataSource>OLK_EnvironmentDataSetupSQL</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_Id</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>Id</DataField>
+								<DataSource>OLK_EnvironmentDataSetupSQL</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_Description</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>Description</DataField>
+								<DataSource>OLK_EnvironmentDataSetupSQL</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormCheckBoxControl">
+								<Name>Grid_Active</Name>
+								<Type>CheckBox</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>Active</DataField>
+								<DataSource>OLK_EnvironmentDataSetupSQL</DataSource>
+							</AxFormControl>
+						</Controls>
+						<DataSource>OLK_EnvironmentDataSetupSQL</DataSource>
+						<MultiSelect>No</MultiSelect>
+						<ShowRowLabels>No</ShowRowLabels>
+						<Style>Tabular</Style>
+					</AxFormControl>
 				</Controls>
-				<ArrangeMethod>HorizontalLeft</ArrangeMethod>
 				<FrameType>None</FrameType>
-				<Style>CustomFilter</Style>
-				<ViewEditMode>Edit</ViewEditMode>
+				<Style>SidePanel</Style>
 			</AxFormControl>
 			<AxFormControl xmlns=""
-				i:type="AxFormGridControl">
-				<Name>Grid</Name>
-				<Type>Grid</Type>
+				i:type="AxFormGroupControl">
+				<Name>VerticalSplitter</Name>
+				<AutoDeclaration>Yes</AutoDeclaration>
+				<Type>Group</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls />
+				<Style>SplitterVerticalContainer</Style>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>DetailsHeader</Name>
+				<Pattern>FieldsFieldGroups</Pattern>
+				<PatternVersion>1.1</PatternVersion>
+				<Type>Group</Type>
+				<WidthMode>SizeToAvailable</WidthMode>
 				<FormControlExtension
 					i:nil="true" />
 				<Controls>
 					<AxFormControl xmlns=""
 						i:type="AxFormStringControl">
-						<Name>OLK_EnvironmentDataSetupSQL_EnvironmentId</Name>
+						<Name>Header_EnvironmentId</Name>
 						<Type>String</Type>
 						<FormControlExtension
 							i:nil="true" />
@@ -126,7 +210,7 @@ public class OLK_EnvironmentDataSetupSQL extends FormRun
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormStringControl">
-						<Name>OLK_EnvironmentDataSetupSQL_RefDataAreaId</Name>
+						<Name>Header_RefDataAreaId</Name>
 						<Type>String</Type>
 						<FormControlExtension
 							i:nil="true" />
@@ -135,7 +219,7 @@ public class OLK_EnvironmentDataSetupSQL extends FormRun
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormStringControl">
-						<Name>OLK_EnvironmentDataSetupSQL_Id</Name>
+						<Name>Header_Id</Name>
 						<Type>String</Type>
 						<FormControlExtension
 							i:nil="true" />
@@ -144,7 +228,7 @@ public class OLK_EnvironmentDataSetupSQL extends FormRun
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormStringControl">
-						<Name>OLK_EnvironmentDataSetupSQL_Description</Name>
+						<Name>Header_Description</Name>
 						<Type>String</Type>
 						<FormControlExtension
 							i:nil="true" />
@@ -153,7 +237,7 @@ public class OLK_EnvironmentDataSetupSQL extends FormRun
 					</AxFormControl>
 					<AxFormControl xmlns=""
 						i:type="AxFormCheckBoxControl">
-						<Name>OLK_EnvironmentDataSetupSQL_Active</Name>
+						<Name>Header_Active</Name>
 						<Type>CheckBox</Type>
 						<FormControlExtension
 							i:nil="true" />
@@ -161,36 +245,36 @@ public class OLK_EnvironmentDataSetupSQL extends FormRun
 						<DataSource>OLK_EnvironmentDataSetupSQL</DataSource>
 					</AxFormControl>
 				</Controls>
-				<DataSource>OLK_EnvironmentDataSetupSQL</DataSource>
-				<Style>Tabular</Style>
+				<ColumnsMode>Fill</ColumnsMode>
+				<FrameType>None</FrameType>
 			</AxFormControl>
 			<AxFormControl xmlns=""
 				i:type="AxFormTabControl">
 				<Name>DetailsTab</Name>
 				<Type>Tab</Type>
-				<WidthMode>SizeToAvailable</WidthMode>
 				<FormControlExtension
 					i:nil="true" />
 				<Controls>
 					<AxFormControl xmlns=""
 						i:type="AxFormTabPageControl">
 						<Name>SqlTab</Name>
+						<Pattern>FieldsFieldGroups</Pattern>
+						<PatternVersion>1.1</PatternVersion>
 						<Type>TabPage</Type>
 						<FormControlExtension
 							i:nil="true" />
 						<Controls>
 							<AxFormControl xmlns=""
 								i:type="AxFormGroupControl">
-								<Name>SqlTabGroup</Name>
+								<Name>SqlGroup</Name>
 								<Type>Group</Type>
 								<FormControlExtension
 									i:nil="true" />
 								<Controls>
 									<AxFormControl xmlns=""
 										i:type="AxFormStringControl">
-										<Name>Sql_SQL</Name>
+										<Name>SqlGroup_SQL</Name>
 										<Type>String</Type>
-										<WidthMode>SizeToAvailable</WidthMode>
 										<FormControlExtension
 											i:nil="true" />
 										<DataField>SQL</DataField>
@@ -200,10 +284,11 @@ public class OLK_EnvironmentDataSetupSQL extends FormRun
 										<MultiLine>Yes</MultiLine>
 									</AxFormControl>
 								</Controls>
-								<FrameType>None</FrameType>
+								<Caption>@OLK_EDSLabel:SqlText</Caption>
 							</AxFormControl>
 						</Controls>
-						<Caption>@OLK_EDSLabel:SqlText</Caption>
+						<ColumnsMode>Fill</ColumnsMode>
+						<Caption>@OLK_EDSLabel:Sql</Caption>
 					</AxFormControl>
 				</Controls>
 				<Style>FastTabs</Style>
