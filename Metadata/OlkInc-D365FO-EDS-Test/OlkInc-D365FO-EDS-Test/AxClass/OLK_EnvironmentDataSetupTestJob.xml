@@ -4,10 +4,11 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// Runs the environment data setup tests in the client and shows the results in the infolog.
+/// Runs the environment data setup tests from the web client and shows the results in the infolog.
 /// </summary>
 /// <remarks>
-/// Open it with ?mi=SysClassRunner&cls=OLK_EnvironmentDataSetupTestJob, or run the tests from the Visual Studio Test Explorer.
+/// Open it with ?mi=SysClassRunner&cls=OLK_EnvironmentDataSetupTestJob. Each test method runs after its own setUp,
+/// so the run does not depend on the Visual Studio test runner. The tests can also be run from the Test Explorer.
 /// </remarks>
 internal final class OLK_EnvironmentDataSetupTestJob
 {
@@ -19,27 +20,81 @@ internal final class OLK_EnvironmentDataSetupTestJob
 				<Source><![CDATA[
     public static void main(Args _args)
     {
-        SysTestRunner runner = new SysTestRunner(classStr(OLK_EnvironmentDataSetupTest));
-        SysTestResult   result;
-        ListEnumerator  messages;
+        SysDictClass    dictClass = new SysDictClass(classNum(OLK_EnvironmentDataSetupTest));
+        SetEnumerator   methods   = dictClass.methods(true, false, false).getEnumerator();
+        Set             testNames = new Set(Types::String);
+        SetEnumerator   tests;
+        int             passed;
+        int             failed;
 
-        runner.run();
-        result = runner.getResult();
-
-        messages = result.getMessages().getEnumerator();
-        while (messages.moveNext())
+        while (methods.moveNext())
         {
-            warning(messages.current());
+            DictMethod dictMethod = methods.current();
+
+            if (dictMethod.getAttribute(classStr(SysTestMethodAttribute)))
+            {
+                testNames.add(dictMethod.name());
+            }
         }
 
-        if (result.getFailureCount())
+        tests = testNames.getEnumerator();
+
+        while (tests.moveNext())
         {
-            error(runner.getSummary());
+            if (OLK_EnvironmentDataSetupTestJob::runTest(tests.current()))
+            {
+                passed++;
+            }
+            else
+            {
+                failed++;
+            }
+        }
+
+        if (failed)
+        {
+            error(strFmt('Environment data setup tests: %1 passed, %2 failed.', passed, failed));
         }
         else
         {
-            info(runner.getSummary());
+            info(strFmt('Environment data setup tests: %1 passed, %2 failed.', passed, failed));
         }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>runTest</Name>
+				<Source><![CDATA[
+    private static boolean runTest(MethodName _testName)
+    {
+        OLK_EnvironmentDataSetupTest    test = new OLK_EnvironmentDataSetupTest();
+        int                             infologStart = infologLine();
+        str                             failure;
+
+        try
+        {
+            test.setUp();
+            new SysDictClass(classNum(OLK_EnvironmentDataSetupTest)).callObject(_testName, test);
+            test.tearDown();
+        }
+        catch (Exception::CLRError)
+        {
+            failure = CLRInterop::getLastException().ToString();
+        }
+        catch
+        {
+            failure = infologLine() > infologStart ? infolog.text(infologLine()) : 'Unknown error';
+        }
+
+        if (failure)
+        {
+            error(strFmt('FAILED %1: %2', _testName, failure));
+            return false;
+        }
+
+        info(strFmt('Passed %1', _testName));
+        return true;
     }
 
 ]]></Source>
