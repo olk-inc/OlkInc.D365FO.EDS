@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupDefaultValues</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+public class OLK_EnvironmentDataSetupDefaultValues extends common
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>find</Name>
+				<Source><![CDATA[
+    public static OLK_EnvironmentDataSetupDefaultValues find(OLK_EdsDefaultValueId _id, boolean _forUpdate = false)
+    {
+        OLK_EnvironmentDataSetupDefaultValues defaultValue;
+
+        if (_id)
+        {
+            defaultValue.selectForUpdate(_forUpdate);
+
+            select firstonly defaultValue
+                where defaultValue.Id == _id;
+        }
+
+        return defaultValue;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>valueList</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the comma separated value of a default value as a list of trimmed strings.
+    /// </summary>
+    /// <param name = "_id">The default value id.</param>
+    /// <returns>A list of strings; empty when the default value is missing or blank.</returns>
+    public static List valueList(OLK_EdsDefaultValueId _id)
+    {
+        List            result = new List(Types::String);
+        ListEnumerator  enumerator = strSplit(OLK_EnvironmentDataSetupDefaultValues::find(_id).Value, ',').getEnumerator();
+
+        while (enumerator.moveNext())
+        {
+            str item = strLTrim(strRTrim(enumerator.current()));
+
+            if (item)
+            {
+                result.addEnd(item);
+            }
+        }
+
+        return result;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+	<ConfigurationKey>OLK_EdsConfigKey</ConfigurationKey>
+	<DeveloperDocumentation>@OLK_EDSLabel:DefaultValues</DeveloperDocumentation>
+	<Label>@OLK_EDSLabel:DefaultValues</Label>
+	<TitleField1>Id</TitleField1>
+	<TitleField2>Description</TitleField2>
+	<CacheLookup>Found</CacheLookup>
+	<ClusteredIndex>IdIdx</ClusteredIndex>
+	<PrimaryIndex>IdIdx</PrimaryIndex>
+	<ReplacementKey>IdIdx</ReplacementKey>
+	<SaveDataPerCompany>No</SaveDataPerCompany>
+	<TableGroup>Parameter</TableGroup>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>Id</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Type</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Value</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>Id</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>Id</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Id</Name>
+			<ExtendedDataType>OLK_EdsDefaultValueId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Description</Name>
+			<ExtendedDataType>Description</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>Type</Name>
+			<Label>@OLK_EDSLabel:ValueType</Label>
+			<EnumType>OLK_EdsValueType</EnumType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Value</Name>
+			<ExtendedDataType>OLK_EdsValue</ExtendedDataType>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>IdIdx</Name>
+			<AlternateKey>Yes</AlternateKey>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>Id</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<Relations />
+	<StateMachines />
+</AxTable>

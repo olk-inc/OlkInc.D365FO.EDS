@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>FormControlQuickPersonalization_Form_OLK_Eds_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Shows the environment data setup group in the personalization pop-up only for controls bound to a data source,
+/// and only to users who can maintain the data setup.
+/// </summary>
+[ExtensionOf(formStr(FormControlQuickPersonalization))]
+final class FormControlQuickPersonalization_Form_OLK_Eds_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>loadControlsState</Name>
+				<Source><![CDATA[
+    public void loadControlsState()
+    {
+        next loadControlsState();
+
+        FormControl personalizedControl = this.args() ? this.args().parmObject() : null;
+        FormControl edsGroup = this.design().controlName(formControlStr(FormControlQuickPersonalization, OLK_EnvironmentDataSetupGroup));
+
+        if (edsGroup)
+        {
+            edsGroup.visible(personalizedControl
+                && personalizedControl.dataSourceObject()
+                && isConfigurationkeyEnabled(configurationKeyNum(OLK_EdsConfigKey))
+                && hasMenuItemAccess(menuItemDisplayStr(OLK_EnvironmentDataSetupTrans), MenuItemType::Display));
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

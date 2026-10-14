@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
+	i:type="AxEdtString">
+	<Name>OLK_EdsEnvironmentId</Name>
+	<HelpText>@OLK_EDSLabel:EnvironmentIdHelp</HelpText>
+	<Label>@OLK_EDSLabel:EnvironmentId</Label>
+	<ReferenceTable>OLK_EnvironmentDataSetupTable</ReferenceTable>
+	<ArrayElements />
+	<Relations />
+	<TableReferences>
+		<AxEdtTableReference>
+			<RelatedField>EnvironmentId</RelatedField>
+			<Table>OLK_EnvironmentDataSetupTable</Table>
+		</AxEdtTableReference>
+	</TableReferences>
+	<StringSize>20</StringSize>
+</AxEdt>

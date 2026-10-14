@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupExecuteCode_Batch</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Code jobs that release batch jobs from Withhold to Waiting, for example after a database refresh has put them on hold.
+/// </summary>
+class OLK_EnvironmentDataSetupExecuteCode_Batch extends OLK_EnvironmentDataSetupExecuteCode
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>enableBatchJobsEdsActive</Name>
+				<Source><![CDATA[
+    [OLK_EnvironmentDataSetupAttribute('Set batch jobs on hold that are marked as environment data setup active to Waiting.')]
+    public void enableBatchJobsEdsActive()
+    {
+        BatchJob batchJob;
+
+        while select batchJob
+            where batchJob.Status             == BatchStatus::Hold
+               && batchJob.OLK_EdsBatchActive == NoYes::Yes
+        {
+            this.setWaiting(batchJob);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>enableBatchJobsAll</Name>
+				<Source><![CDATA[
+    [OLK_EnvironmentDataSetupAttribute('Set all batch jobs on hold to Waiting.')]
+    public void enableBatchJobsAll()
+    {
+        BatchJob batchJob;
+
+        while select batchJob
+            where batchJob.Status == BatchStatus::Hold
+        {
+            this.setWaiting(batchJob);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>enableBatchJobsList</Name>
+				<Source><![CDATA[
+    [OLK_EnvironmentDataSetupAttribute('Set the batch jobs on hold that are listed in the EnableBatchJobsList default value, by job id or description, to Waiting.')]
+    public void enableBatchJobsList()
+    {
+        ListEnumerator  items = OLK_EnvironmentDataSetupDefaultValues::valueList(OLK_EnvironmentDataSetupDefaultData::EnableBatchJobsList).getEnumerator();
+        BatchJob        batchJob;
+
+        while (items.moveNext())
+        {
+            str     item  = items.current();
+            RecId   jobId = str2Int64(item);
+
+            while select batchJob
+                where batchJob.Status == BatchStatus::Hold
+                   && (batchJob.Caption == item || (jobId && batchJob.RecId == jobId))
+            {
+                this.setWaiting(batchJob);
+            }
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>setWaiting</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Changes the status of a batch job to Waiting through the standard status change, so its validations apply.
+    /// </summary>
+    protected void setWaiting(BatchJob _batchJob)
+    {
+        BatchChangeStatus changeStatus = new BatchChangeStatus();
+
+        changeStatus.olkParmChoiceString(enum2Str(BatchStatus::Waiting));
+        changeStatus.do(_batchJob);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

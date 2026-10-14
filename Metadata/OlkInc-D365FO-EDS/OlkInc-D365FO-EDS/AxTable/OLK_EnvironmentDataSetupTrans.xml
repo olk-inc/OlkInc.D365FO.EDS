@@ -1,0 +1,492 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupTrans</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+public class OLK_EnvironmentDataSetupTrans extends common
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>find</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds a data setup line.
+    /// </summary>
+    public static OLK_EnvironmentDataSetupTrans find(
+        OLK_EdsEnvironmentId        _environmentId,
+        OLK_EdsDataAreaId           _dataAreaId,
+        OLK_EdsRefTableId           _refTableId,
+        OLK_EdsRefRecId             _refRecId,
+        OLK_EdsFieldId              _fieldId,
+        OLK_EdsEncryptedMethodName  _encryptedMethodName = '',
+        boolean                     _forUpdate = false)
+    {
+        OLK_EnvironmentDataSetupTrans trans;
+
+        trans.selectForUpdate(_forUpdate);
+
+        select firstonly trans
+            where trans.EnvironmentId       == _environmentId
+               && trans.RefDataAreaId       == _dataAreaId
+               && trans.RefTableId          == _refTableId
+               && trans.RefRecId            == _refRecId
+               && trans.FieldId             == _fieldId
+               && trans.EncryptedMethodName == _encryptedMethodName;
+
+        return trans;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>tableName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the AOT name of the referenced table.
+    /// </summary>
+    [SysClientCacheDataMethodAttribute(true)]
+    public display TableName tableName()
+    {
+        return tableId2Name(this.RefTableId);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>tableLabel</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the label of the referenced table.
+    /// </summary>
+    [SysClientCacheDataMethodAttribute(true)]
+    public display Name tableLabel()
+    {
+        return tableId2PName(this.RefTableId);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>fieldName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the AOT name of the referenced field, or the edit method for encrypted fields.
+    /// </summary>
+    [SysClientCacheDataMethodAttribute(true)]
+    public display FieldName fieldName()
+    {
+        return this.EncryptedField ? this.EncryptedMethodName : fieldId2Name(this.RefTableId, this.FieldId);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>fieldLabel</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the label of the referenced field.
+    /// </summary>
+    [SysClientCacheDataMethodAttribute(true)]
+    public display Name fieldLabel()
+    {
+        return this.FieldId ? fieldId2PName(this.RefTableId, this.FieldId) : '';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>enumValueLabel</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the label of the enum value for enum fields.
+    /// </summary>
+    public display Name enumValueLabel()
+    {
+        DictField dictField = this.FieldId ? new DictField(this.RefTableId, this.FieldId) : null;
+
+        if (dictField && dictField.baseType() == Types::Enum && strLen(this.Value))
+        {
+            return new DictEnum(dictField.enumId()).value2Label(str2Int(this.Value));
+        }
+
+        return '';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>findReferencedRecord</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Selects the record that this line updates, in the current company.
+    /// </summary>
+    /// <param name = "_forUpdate">true if the record is selected for update.</param>
+    /// <returns>The referenced record; an empty buffer if it does not exist.</returns>
+    public Common findReferencedRecord(boolean _forUpdate = false)
+    {
+        DictTable   dictTable = new DictTable(this.RefTableId);
+        Common      record;
+
+        if (dictTable)
+        {
+            record = dictTable.makeRecord();
+            record.selectForUpdate(_forUpdate);
+
+            select firstonly record
+                where record.RecId == this.RefRecId;
+        }
+
+        return record;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createTrans</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds a field of a record to the data setup of an environment.
+    /// </summary>
+    /// <param name = "_record">The record that holds the field.</param>
+    /// <param name = "_fieldId">The field to add; 0 when an edit method is used.</param>
+    /// <param name = "_environmentId">The environment.</param>
+    /// <param name = "_overwriteType">How an existing line for the same field is handled.</param>
+    /// <param name = "_description">Description of the line.</param>
+    /// <param name = "_encryptedMethodName">Edit method for encrypted fields.</param>
+    /// <returns>The created or updated line; an empty buffer if nothing was written.</returns>
+    public static OLK_EnvironmentDataSetupTrans createTrans(
+        Common                      _record,
+        FieldId                     _fieldId,
+        OLK_EdsEnvironmentId        _environmentId,
+        OLK_EdsOverwriteType        _overwriteType,
+        Description                 _description,
+        OLK_EdsEncryptedMethodName  _encryptedMethodName = '')
+    {
+        DictTable           dictTable = new DictTable(_record.TableId);
+        OLK_EdsDataAreaId   dataAreaId = dictTable.dataPrCompany() ? _record.DataAreaId : '';
+        FieldName           fieldName = _fieldId ? fieldId2Name(_record.TableId, _fieldId) : _encryptedMethodName;
+        OLK_EnvironmentDataSetupTrans trans;
+
+        if (!OLK_EnvironmentDataSetupTable::exist(_environmentId))
+        {
+            throw error(strFmt("@OLK_EDSLabel:EnvironmentNotFound", _environmentId));
+        }
+
+        ttsbegin;
+
+        trans = OLK_EnvironmentDataSetupTrans::find(_environmentId, dataAreaId, _record.TableId, _record.RecId, _fieldId, _encryptedMethodName, true);
+
+        if (trans.RecId)
+        {
+            if (_overwriteType == OLK_EdsOverwriteType::Never)
+            {
+                throw error(strFmt("@OLK_EDSLabel:TransExists", fieldName, _environmentId));
+            }
+
+            if (_overwriteType == OLK_EdsOverwriteType::IfNotExists)
+            {
+                warning(strFmt("@OLK_EDSLabel:TransExists", fieldName, _environmentId));
+                ttscommit;
+                return trans;
+            }
+        }
+
+        trans.EnvironmentId         = _environmentId;
+        trans.RefDataAreaId         = dataAreaId;
+        trans.RefTableId            = _record.TableId;
+        trans.RefRecId              = _record.RecId;
+        trans.FieldId               = _fieldId;
+        trans.EncryptedMethodName   = _encryptedMethodName;
+        trans.EncryptedField        = _fieldId ? NoYes::No : NoYes::Yes;
+        trans.Description           = _description ? _description : (_fieldId ? fieldId2PName(_record.TableId, _fieldId) : _encryptedMethodName);
+
+        if (_fieldId)
+        {
+            trans.Value = OLK_EnvironmentDataSetupValueConverter::toStr(_record.(_fieldId), new DictField(_record.TableId, _fieldId));
+        }
+
+        trans.write();
+
+        ttscommit;
+
+        info(strFmt("@OLK_EDSLabel:TransCreated", fieldName, _environmentId));
+
+        return trans;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createFromControl</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds the field behind a form control, with the value of the current record, to the data setup of an environment.
+    /// </summary>
+    /// <param name = "_control">A control bound to a table field or an edit method.</param>
+    /// <param name = "_environmentId">The environment.</param>
+    /// <param name = "_description">Description of the line.</param>
+    public static void createFromControl(FormControl _control, OLK_EdsEnvironmentId _environmentId, Description _description)
+    {
+        FormDataSource  dataSource;
+        FieldBinding    binding;
+        Object          controlObject = _control;
+        str             dataMethod;
+
+        if (!_environmentId)
+        {
+            throw error("@OLK_EDSLabel:EnvironmentIdEmpty");
+        }
+
+        dataSource = _control ? _control.dataSourceObject() : null;
+
+        if (!dataSource || !dataSource.cursor().RecId)
+        {
+            throw error("@OLK_EDSLabel:FieldRefNotFound");
+        }
+
+        binding = _control.fieldBinding();
+
+        if (binding && !binding.isNull() && binding.fieldId())
+        {
+            OLK_EnvironmentDataSetupTrans::createTrans(dataSource.cursor(), binding.fieldId(), _environmentId, OLK_EdsOverwriteType::Always, _description);
+            return;
+        }
+
+        // Encrypted fields are shown through edit methods, so only the method name is known.
+        if (Form::formKernelObjectHasMethod(_control, identifierStr(dataMethod)))
+        {
+            dataMethod = controlObject.dataMethod();
+        }
+
+        if (!dataMethod)
+        {
+            throw error("@OLK_EDSLabel:FieldRefNotFound");
+        }
+
+        OLK_EnvironmentDataSetupTrans::createTrans(dataSource.cursor(), 0, _environmentId, OLK_EdsOverwriteType::Always, _description, dataMethod);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+	<ConfigurationKey>OLK_EdsConfigKey</ConfigurationKey>
+	<DeveloperDocumentation>@OLK_EDSLabel:DataSetupHelp</DeveloperDocumentation>
+	<Label>@OLK_EDSLabel:DataSetup</Label>
+	<TitleField1>EnvironmentId</TitleField1>
+	<TitleField2>Description</TitleField2>
+	<CacheLookup>Found</CacheLookup>
+	<ClusteredIndex>TransIdx</ClusteredIndex>
+	<PrimaryIndex>TransIdx</PrimaryIndex>
+	<ReplacementKey>TransIdx</ReplacementKey>
+	<SaveDataPerCompany>No</SaveDataPerCompany>
+	<TableGroup>Main</TableGroup>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Value</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefTableId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefRecId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>FieldId</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>Overview</Name>
+			<Label>@OLK_EDSLabel:Overview</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Value</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>EncryptedField</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>Reference</Name>
+			<Label>@OLK_EDSLabel:Reference</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefTableId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefRecId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>FieldId</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>EncryptedField</Name>
+			<Label>@OLK_EDSLabel:EncryptedField</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EncryptedField</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>EncryptedMethodName</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>EnvironmentId</Name>
+			<ExtendedDataType>OLK_EdsEnvironmentId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>RefDataAreaId</Name>
+			<ExtendedDataType>OLK_EdsDataAreaId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt">
+			<Name>RefTableId</Name>
+			<ExtendedDataType>OLK_EdsRefTableId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt64">
+			<Name>RefRecId</Name>
+			<ExtendedDataType>OLK_EdsRefRecId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt">
+			<Name>FieldId</Name>
+			<ExtendedDataType>OLK_EdsFieldId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Description</Name>
+			<ExtendedDataType>Description</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Value</Name>
+			<ExtendedDataType>OLK_EdsValue</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>EncryptedField</Name>
+			<ExtendedDataType>OLK_EdsEncryptedField</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>EncryptedMethodName</Name>
+			<ExtendedDataType>OLK_EdsEncryptedMethodName</ExtendedDataType>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>TransIdx</Name>
+			<AlternateKey>Yes</AlternateKey>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>RefTableId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>RefRecId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>FieldId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>EncryptedMethodName</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<Relations>
+		<AxTableRelation>
+			<Name>OLK_EnvironmentDataSetupTable</Name>
+			<Cardinality>ZeroMore</Cardinality>
+			<OnDelete>Cascade</OnDelete>
+			<RelatedTable>OLK_EnvironmentDataSetupTable</RelatedTable>
+			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
+			<RelationshipType>Association</RelationshipType>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>EnvironmentId</Name>
+					<Field>EnvironmentId</Field>
+					<RelatedField>EnvironmentId</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+		</AxTableRelation>
+	</Relations>
+	<StateMachines />
+</AxTable>

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupValueConverter</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Converts field values to and from the culture independent text stored in the environment data setup.
+/// </summary>
+/// <remarks>
+/// Dates are stored as yyyy-mm-dd, date and time values in ISO 8601, reals with a dot as decimal separator
+/// and enums as their integer value.
+/// </remarks>
+public static class OLK_EnvironmentDataSetupValueConverter
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>toStr</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Converts a field value to text.
+    /// </summary>
+    /// <param name = "_value">The value.</param>
+    /// <param name = "_dictField">The field the value belongs to.</param>
+    /// <returns>The value as text.</returns>
+    public static str toStr(anytype _value, DictField _dictField)
+    {
+        switch (_dictField.baseType())
+        {
+            case Types::String:
+            case Types::RString:
+            case Types::VarString:
+                return _value;
+
+            case Types::Integer:
+                return int2Str(_value);
+
+            case Types::Int64:
+                return int642Str(_value);
+
+            case Types::Real:
+                return num2Str(_value, 0, numOfDec(_value), 1, 0);
+
+            case Types::Enum:
+                return int2Str(any2Int(_value));
+
+            case Types::Date:
+                return date2Str(_value, 321, DateDay::Digits2, DateSeparator::Hyphen, DateMonth::Digits2, DateSeparator::Hyphen, DateYear::Digits4, DateFlags::None);
+
+            case Types::UtcDateTime:
+                return DateTimeUtil::toStr(_value);
+
+            case Types::Guid:
+                return guid2Str(_value);
+
+            default:
+                throw error(strFmt("@OLK_EDSLabel:UnsupportedType", _dictField.baseType()));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>fromStr</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Converts text to a value of the type of a field.
+    /// </summary>
+    /// <param name = "_value">The text.</param>
+    /// <param name = "_dictField">The field the value is written to.</param>
+    /// <returns>The typed value.</returns>
+    public static anytype fromStr(str _value, DictField _dictField)
+    {
+        switch (_dictField.baseType())
+        {
+            case Types::String:
+            case Types::RString:
+            case Types::VarString:
+                return _value;
+
+            case Types::Integer:
+                return str2Int(_value);
+
+            case Types::Int64:
+                return str2Int64(_value);
+
+            case Types::Real:
+                return str2Num(_value);
+
+            case Types::Enum:
+                return OLK_EnvironmentDataSetupValueConverter::enumValue(_value, _dictField);
+
+            case Types::Date:
+                return str2Date(_value, 321);
+
+            case Types::UtcDateTime:
+                return DateTimeUtil::parse(_value);
+
+            case Types::Guid:
+                return str2Guid(_value);
+
+            default:
+                throw error(strFmt("@OLK_EDSLabel:UnsupportedType", _dictField.baseType()));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>enumValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Accepts an enum value either as its integer value or as its symbol.
+    /// </summary>
+    private static int enumValue(str _value, DictField _dictField)
+    {
+        str value = strLTrim(strRTrim(_value));
+
+        if (value == int2Str(str2Int(value)))
+        {
+            return str2Int(value);
+        }
+
+        return new DictEnum(_dictField.enumId()).symbol2Value(value);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

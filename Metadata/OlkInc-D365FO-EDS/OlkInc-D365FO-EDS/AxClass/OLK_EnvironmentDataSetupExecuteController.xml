@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupExecuteController</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Opens the dialog for executing the environment data setup.
+/// </summary>
+class OLK_EnvironmentDataSetupExecuteController extends SysOperationServiceController
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    public static OLK_EnvironmentDataSetupExecuteController construct()
+    {
+        return new OLK_EnvironmentDataSetupExecuteController(
+            classStr(OLK_EnvironmentDataSetupExecuteService),
+            methodStr(OLK_EnvironmentDataSetupExecuteService, execute),
+            SysOperationExecutionMode::Synchronous);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    public static void main(Args _args)
+    {
+        OLK_EnvironmentDataSetupExecuteController controller = OLK_EnvironmentDataSetupExecuteController::construct();
+
+        controller.parmArgs(_args);
+
+        if (_args && _args.record() && _args.record().TableId == tableNum(OLK_EnvironmentDataSetupTable))
+        {
+            OLK_EnvironmentDataSetupTable           environment = _args.record();
+            OLK_EnvironmentDataSetupExecuteContract contract    = controller.getDataContractObject();
+
+            contract.parmEnvironmentId(environment.EnvironmentId);
+        }
+
+        controller.startOperation();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>defaultCaption</Name>
+				<Source><![CDATA[
+    protected ClassDescription defaultCaption()
+    {
+        return "@OLK_EDSLabel:Execute";
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

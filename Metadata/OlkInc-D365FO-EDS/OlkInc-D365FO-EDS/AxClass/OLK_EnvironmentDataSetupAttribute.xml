@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupAttribute</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Marks a method on a subclass of <c>OLK_EnvironmentDataSetupExecuteCode</c> as a code job and describes it.
+/// </summary>
+public class OLK_EnvironmentDataSetupAttribute extends SysAttribute
+{
+    FreeTxt description;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>new</Name>
+				<Source><![CDATA[
+    public void new(FreeTxt _description = '')
+    {
+        super();
+
+        description = _description;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmDescription</Name>
+				<Source><![CDATA[
+    public FreeTxt parmDescription(FreeTxt _description = description)
+    {
+        description = _description;
+
+        return description;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

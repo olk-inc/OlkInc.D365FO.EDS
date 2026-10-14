@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupTable</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+public class OLK_EnvironmentDataSetupTable extends common
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>find</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds an environment by its id.
+    /// </summary>
+    /// <param name = "_environmentId">The environment id.</param>
+    /// <param name = "_forUpdate">true if the record is selected for update.</param>
+    /// <returns>The environment record; an empty buffer if it does not exist.</returns>
+    public static OLK_EnvironmentDataSetupTable find(OLK_EdsEnvironmentId _environmentId, boolean _forUpdate = false)
+    {
+        OLK_EnvironmentDataSetupTable environment;
+
+        if (_environmentId)
+        {
+            environment.selectForUpdate(_forUpdate);
+
+            select firstonly environment
+                where environment.EnvironmentId == _environmentId;
+        }
+
+        return environment;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>exist</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks whether an environment exists.
+    /// </summary>
+    /// <param name = "_environmentId">The environment id.</param>
+    /// <returns>true if the environment exists.</returns>
+    public static boolean exist(OLK_EdsEnvironmentId _environmentId)
+    {
+        return _environmentId
+            && (select firstonly RecId from OLK_EnvironmentDataSetupTable
+                    where OLK_EnvironmentDataSetupTable.EnvironmentId == _environmentId).RecId != 0;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>findMaster</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds the master environment.
+    /// </summary>
+    /// <returns>The master environment; an empty buffer if none is marked as master.</returns>
+    public static OLK_EnvironmentDataSetupTable findMaster()
+    {
+        OLK_EnvironmentDataSetupTable environment;
+
+        select firstonly environment
+            where environment.MasterEnvironment == NoYes::Yes;
+
+        return environment;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateWrite</Name>
+				<Source><![CDATA[
+    public boolean validateWrite()
+    {
+        boolean ret = super();
+
+        if (ret && this.MasterEnvironment)
+        {
+            OLK_EnvironmentDataSetupTable master;
+
+            select firstonly EnvironmentId from master
+                where master.MasterEnvironment == NoYes::Yes
+                   && master.RecId             != this.RecId;
+
+            if (master.EnvironmentId)
+            {
+                ret = checkFailed(strFmt("@OLK_EDSLabel:OnlyOneMaster", master.EnvironmentId));
+            }
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+	<ConfigurationKey>OLK_EdsConfigKey</ConfigurationKey>
+	<DeveloperDocumentation>@OLK_EDSLabel:Environments</DeveloperDocumentation>
+	<Label>@OLK_EDSLabel:Environments</Label>
+	<TitleField1>EnvironmentId</TitleField1>
+	<TitleField2>Description</TitleField2>
+	<CacheLookup>Found</CacheLookup>
+	<ClusteredIndex>EnvironmentIdIdx</ClusteredIndex>
+	<PrimaryIndex>EnvironmentIdIdx</PrimaryIndex>
+	<ReplacementKey>EnvironmentIdIdx</ReplacementKey>
+	<SaveDataPerCompany>No</SaveDataPerCompany>
+	<TableGroup>Group</TableGroup>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>MasterEnvironment</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>Overview</Name>
+			<Label>@OLK_EDSLabel:Overview</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>MasterEnvironment</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>EnvironmentId</Name>
+			<ExtendedDataType>OLK_EdsEnvironmentId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Description</Name>
+			<ExtendedDataType>Description</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>MasterEnvironment</Name>
+			<ExtendedDataType>OLK_EdsMasterEnvironment</ExtendedDataType>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>EnvironmentIdIdx</Name>
+			<AlternateKey>Yes</AlternateKey>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<Relations />
+	<StateMachines />
+</AxTable>

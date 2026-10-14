@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupEncryptedField</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Writes values to encrypted fields through the edit method of the table, because encrypted fields cannot be assigned directly.
+/// </summary>
+public static class OLK_EnvironmentDataSetupEncryptedField
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>setValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Calls an edit method on a record to set a value.
+    /// </summary>
+    /// <param name = "_record">The record, selected for update.</param>
+    /// <param name = "_editMethodName">The edit method on the table.</param>
+    /// <param name = "_value">The value to set.</param>
+    public static void setValue(Common _record, OLK_EdsEncryptedMethodName _editMethodName, str _value)
+    {
+        DictTable dictTable = new DictTable(_record.TableId);
+
+        if (!_editMethodName || !tableHasMethod(dictTable, _editMethodName))
+        {
+            throw error("@OLK_EDSLabel:FieldRefNotFound");
+        }
+
+        dictTable.callObject(_editMethodName, _record, true, _value);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

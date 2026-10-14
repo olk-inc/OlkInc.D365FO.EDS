@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupQuickPersonalizationHelper</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Handles the Create environment data button that the environment data setup adds to the personalization pop-up of form controls.
+/// </summary>
+class OLK_EnvironmentDataSetupQuickPersonalizationHelper
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>OLK_EnvironmentDataSetupCreate_OnClicked</Name>
+				<Source><![CDATA[
+    [FormControlEventHandler(formControlStr(FormControlQuickPersonalization, OLK_EnvironmentDataSetupCreate), FormControlEventType::Clicked)]
+    public static void OLK_EnvironmentDataSetupCreate_OnClicked(FormControl sender, FormControlEventArgs e)
+    {
+        FormRun             formRun             = sender.formRun();
+        FormStringControl   environmentControl  = formRun.design().controlName(formControlStr(FormControlQuickPersonalization, OLK_EnvironmentDataSetupEnvironmentId));
+        FormStringControl   descriptionControl  = formRun.design().controlName(formControlStr(FormControlQuickPersonalization, OLK_EnvironmentDataSetupDescription));
+        FormControl         personalizedControl = formRun.args().parmObject();
+
+        OLK_EnvironmentDataSetupTrans::createFromControl(personalizedControl, environmentControl.text(), descriptionControl.text());
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

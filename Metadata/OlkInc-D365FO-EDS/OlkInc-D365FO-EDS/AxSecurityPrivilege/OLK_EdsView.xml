@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EdsView</Name>
+	<Label>@OLK_EDSLabel:ViewPrivilege</Label>
+	<DataEntityPermissions />
+	<DirectAccessPermissions />
+	<EntryPoints>
+		<AxSecurityEntryPointReference>
+			<Name>OLK_EnvironmentDataSetupTable</Name>
+			<Grant>
+				<Read>Allow</Read>
+			</Grant>
+			<ObjectName>OLK_EnvironmentDataSetupTable</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+		<AxSecurityEntryPointReference>
+			<Name>OLK_EnvironmentDataSetupTrans</Name>
+			<Grant>
+				<Read>Allow</Read>
+			</Grant>
+			<ObjectName>OLK_EnvironmentDataSetupTrans</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+		<AxSecurityEntryPointReference>
+			<Name>OLK_EnvironmentDataSetupCode</Name>
+			<Grant>
+				<Read>Allow</Read>
+			</Grant>
+			<ObjectName>OLK_EnvironmentDataSetupCode</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+		<AxSecurityEntryPointReference>
+			<Name>OLK_EnvironmentDataSetupSQL</Name>
+			<Grant>
+				<Read>Allow</Read>
+			</Grant>
+			<ObjectName>OLK_EnvironmentDataSetupSQL</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+		<AxSecurityEntryPointReference>
+			<Name>OLK_EnvironmentDataSetupDefaultValues</Name>
+			<Grant>
+				<Read>Allow</Read>
+			</Grant>
+			<ObjectName>OLK_EnvironmentDataSetupDefaultValues</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+		<AxSecurityEntryPointReference>
+			<Name>OLK_EnvironmentDataSetupLog</Name>
+			<Grant>
+				<Read>Allow</Read>
+			</Grant>
+			<ObjectName>OLK_EnvironmentDataSetupLog</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+	</EntryPoints>
+	<FormControlOverrides />
+</AxSecurityPrivilege>

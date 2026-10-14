@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxFormExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
+	<Name>FormControlQuickPersonalization.OLK_Eds_Extension</Name>
+	<ControlModifications />
+	<Controls>
+		<AxFormExtensionControl xmlns="">
+			<Name>OLK_EnvironmentDataSetupGroupExtension</Name>
+			<FormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>OLK_EnvironmentDataSetupGroup</Name>
+				<Type>Group</Type>
+				<WidthMode>SizeToAvailable</WidthMode>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>OLK_EnvironmentDataSetupEnvironmentId</Name>
+						<AutoDeclaration>Yes</AutoDeclaration>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<ExtendedDataType>OLK_EdsEnvironmentId</ExtendedDataType>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>OLK_EnvironmentDataSetupDescription</Name>
+						<AutoDeclaration>Yes</AutoDeclaration>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<ExtendedDataType>Description</ExtendedDataType>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormButtonControl">
+						<Name>OLK_EnvironmentDataSetupCreate</Name>
+						<HelpText>@OLK_EDSLabel:CreateEnvironmentDataHelp</HelpText>
+						<Type>Button</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Text>@OLK_EDSLabel:CreateEnvironmentData</Text>
+					</AxFormControl>
+				</Controls>
+				<Caption>@OLK_EDSLabel:DataSetup</Caption>
+			</FormControl>
+			<Parent>Content</Parent>
+		</AxFormExtensionControl>
+	</Controls>
+	<DataSourceModifications />
+	<DataSourceReferences />
+	<DataSources />
+	<Parts />
+	<PropertyModifications />
+</AxFormExtension>

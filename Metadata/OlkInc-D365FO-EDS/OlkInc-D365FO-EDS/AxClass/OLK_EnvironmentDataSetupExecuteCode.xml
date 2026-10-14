@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupExecuteCode</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Base class for environment data setup code jobs.
+/// </summary>
+/// <remarks>
+/// Every public instance method without parameters that is decorated with <c>OLK_EnvironmentDataSetupAttribute</c>
+/// on a direct subclass of this class can be set up as a code job.
+/// </remarks>
+abstract class OLK_EnvironmentDataSetupExecuteCode
+{
+    OLK_EdsEnvironmentId environmentId;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>parmEnvironmentId</Name>
+				<Source><![CDATA[
+    public OLK_EdsEnvironmentId parmEnvironmentId(OLK_EdsEnvironmentId _environmentId = environmentId)
+    {
+        environmentId = _environmentId;
+
+        return environmentId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>codeJobAttribute</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets the code job attribute of a method.
+    /// </summary>
+    /// <param name = "_classId">The class.</param>
+    /// <param name = "_methodName">The instance method.</param>
+    /// <returns>The attribute; null if the method is not a code job.</returns>
+    public static OLK_EnvironmentDataSetupAttribute codeJobAttribute(ClassId _classId, OLK_EdsMethodName _methodName)
+    {
+        DictMethod dictMethod;
+
+        if (!_classId
+            || !_methodName
+            || _classId == classNum(OLK_EnvironmentDataSetupExecuteCode)
+            || !SysDictClass::isEqualOrSuperclass(_classId, classNum(OLK_EnvironmentDataSetupExecuteCode)))
+        {
+            return null;
+        }
+
+        dictMethod = new DictMethod(UtilElementType::ClassInstanceMethod, _classId, _methodName);
+
+        if (!dictMethod || dictMethod.parameterCnt() != 0)
+        {
+            return null;
+        }
+
+        return dictMethod.getAttribute(classStr(OLK_EnvironmentDataSetupAttribute));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isCodeJobMethod</Name>
+				<Source><![CDATA[
+    public static boolean isCodeJobMethod(ClassId _classId, OLK_EdsMethodName _methodName)
+    {
+        return OLK_EnvironmentDataSetupExecuteCode::codeJobAttribute(_classId, _methodName) != null;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>runMethod</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Runs a code job in the current company.
+    /// </summary>
+    /// <param name = "_classId">The code job class.</param>
+    /// <param name = "_methodName">The code job method.</param>
+    /// <param name = "_environmentId">The environment the setup is executed for.</param>
+    public static void runMethod(ClassId _classId, OLK_EdsMethodName _methodName, OLK_EdsEnvironmentId _environmentId)
+    {
+        SysDictClass                        dictClass;
+        OLK_EnvironmentDataSetupExecuteCode codeJob;
+
+        if (!OLK_EnvironmentDataSetupExecuteCode::isCodeJobMethod(_classId, _methodName))
+        {
+            throw error(strFmt("@OLK_EDSLabel:NotACodeJob", _methodName, classId2Name(_classId)));
+        }
+
+        dictClass = new SysDictClass(_classId);
+        codeJob   = dictClass.makeObject();
+        codeJob.parmEnvironmentId(_environmentId);
+
+        dictClass.callObject(_methodName, codeJob);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createCodeJobs</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates an inactive code job for every code job method that does not have one yet.
+    /// </summary>
+    /// <param name = "_environmentId">The environment.</param>
+    /// <param name = "_dataAreaId">The company the code jobs run in.</param>
+    public static void createCodeJobs(OLK_EdsEnvironmentId _environmentId, OLK_EdsDataAreaId _dataAreaId)
+    {
+        ListEnumerator classes = new DictClass(classNum(OLK_EnvironmentDataSetupExecuteCode)).extendedBy().getEnumerator();
+
+        ttsbegin;
+
+        while (classes.moveNext())
+        {
+            ClassId         classId = classes.current();
+            SetEnumerator   methods = new SysDictClass(classId).methods(true, false, false).getEnumerator();
+
+            while (methods.moveNext())
+            {
+                DictMethod                          dictMethod = methods.current();
+                OLK_EnvironmentDataSetupAttribute   attribute  = OLK_EnvironmentDataSetupExecuteCode::codeJobAttribute(classId, dictMethod.name());
+
+                if (attribute)
+                {
+                    OLK_EnvironmentDataSetupCode::createCode(_environmentId, _dataAreaId, classId, dictMethod.name(), attribute.parmDescription());
+                }
+            }
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

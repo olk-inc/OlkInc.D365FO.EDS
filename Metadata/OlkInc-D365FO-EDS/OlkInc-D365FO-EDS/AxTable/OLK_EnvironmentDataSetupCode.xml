@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupCode</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+public class OLK_EnvironmentDataSetupCode extends common
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>find</Name>
+				<Source><![CDATA[
+    public static OLK_EnvironmentDataSetupCode find(
+        OLK_EdsEnvironmentId    _environmentId,
+        OLK_EdsDataAreaId       _dataAreaId,
+        OLK_EdsClassId          _classId,
+        OLK_EdsMethodName       _methodName,
+        boolean                 _forUpdate = false)
+    {
+        OLK_EnvironmentDataSetupCode code;
+
+        code.selectForUpdate(_forUpdate);
+
+        select firstonly code
+            where code.EnvironmentId == _environmentId
+               && code.RefDataAreaId == _dataAreaId
+               && code.ClassId       == _classId
+               && code.MethodName    == _methodName;
+
+        return code;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>className</Name>
+				<Source><![CDATA[
+    [SysClientCacheDataMethodAttribute(true)]
+    public display ClassName className()
+    {
+        return classId2Name(this.ClassId);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createCode</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates an inactive code job unless it already exists.
+    /// </summary>
+    public static void createCode(
+        OLK_EdsEnvironmentId    _environmentId,
+        OLK_EdsDataAreaId       _dataAreaId,
+        OLK_EdsClassId          _classId,
+        OLK_EdsMethodName       _methodName,
+        FreeTxt                 _description)
+    {
+        OLK_EnvironmentDataSetupCode code;
+
+        if (OLK_EnvironmentDataSetupCode::find(_environmentId, _dataAreaId, _classId, _methodName).RecId)
+        {
+            return;
+        }
+
+        code.EnvironmentId  = _environmentId;
+        code.RefDataAreaId  = _dataAreaId;
+        code.ClassId        = _classId;
+        code.MethodName     = _methodName;
+        code.Description    = _description;
+        code.Active         = NoYes::No;
+        code.insert();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateWrite</Name>
+				<Source><![CDATA[
+    public boolean validateWrite()
+    {
+        boolean ret = super();
+
+        if (ret && !OLK_EnvironmentDataSetupExecuteCode::isCodeJobMethod(this.ClassId, this.MethodName))
+        {
+            ret = checkFailed(strFmt("@OLK_EDSLabel:NotACodeJob", this.MethodName, classId2Name(this.ClassId)));
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+	<ConfigurationKey>OLK_EdsConfigKey</ConfigurationKey>
+	<DeveloperDocumentation>@OLK_EDSLabel:CodeJobs</DeveloperDocumentation>
+	<Label>@OLK_EDSLabel:CodeJobs</Label>
+	<TitleField1>EnvironmentId</TitleField1>
+	<TitleField2>MethodName</TitleField2>
+	<CacheLookup>Found</CacheLookup>
+	<ClusteredIndex>EnvironmentIdIdx</ClusteredIndex>
+	<PrimaryIndex>EnvironmentIdIdx</PrimaryIndex>
+	<ReplacementKey>EnvironmentIdIdx</ReplacementKey>
+	<SaveDataPerCompany>No</SaveDataPerCompany>
+	<TableGroup>Main</TableGroup>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>ClassId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>MethodName</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Active</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>MethodName</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>ClassId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>MethodName</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>Overview</Name>
+			<Label>@OLK_EDSLabel:Overview</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>MethodName</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Active</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>EnvironmentId</Name>
+			<ExtendedDataType>OLK_EdsEnvironmentId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>RefDataAreaId</Name>
+			<ExtendedDataType>OLK_EdsDataAreaId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt">
+			<Name>ClassId</Name>
+			<ExtendedDataType>OLK_EdsClassId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>MethodName</Name>
+			<ExtendedDataType>OLK_EdsMethodName</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Description</Name>
+			<ExtendedDataType>FreeTxt</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>Active</Name>
+			<ExtendedDataType>OLK_EdsActive</ExtendedDataType>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>EnvironmentIdIdx</Name>
+			<AlternateKey>Yes</AlternateKey>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>ClassId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>MethodName</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<Relations>
+		<AxTableRelation>
+			<Name>OLK_EnvironmentDataSetupTable</Name>
+			<Cardinality>ZeroMore</Cardinality>
+			<OnDelete>Cascade</OnDelete>
+			<RelatedTable>OLK_EnvironmentDataSetupTable</RelatedTable>
+			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
+			<RelationshipType>Association</RelationshipType>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>EnvironmentId</Name>
+					<Field>EnvironmentId</Field>
+					<RelatedField>EnvironmentId</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+		</AxTableRelation>
+	</Relations>
+	<StateMachines />
+</AxTable>

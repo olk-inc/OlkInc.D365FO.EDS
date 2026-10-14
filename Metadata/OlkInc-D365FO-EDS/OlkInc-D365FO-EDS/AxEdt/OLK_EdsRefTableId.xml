@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
+	i:type="AxEdtInt">
+	<Name>OLK_EdsRefTableId</Name>
+	<Extends>RefTableId</Extends>
+	<HelpText>@OLK_EDSLabel:RefTableIdHelp</HelpText>
+	<Label>@OLK_EDSLabel:RefTableId</Label>
+	<ArrayElements />
+	<Relations />
+	<TableReferences />
+</AxEdt>

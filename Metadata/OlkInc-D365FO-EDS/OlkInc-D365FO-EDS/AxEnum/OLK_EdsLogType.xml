@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EdsLogType</Name>
+	<Label>@OLK_EDSLabel:LogType</Label>
+	<UseEnumValue>No</UseEnumValue>
+	<EnumValues>
+		<AxEnumValue>
+			<Name>Data</Name>
+			<Label>@OLK_EDSLabel:Data</Label>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Code</Name>
+			<Label>@OLK_EDSLabel:Code</Label>
+			<Value>1</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>SQL</Name>
+			<Label>@OLK_EDSLabel:Sql</Label>
+			<Value>2</Value>
+		</AxEnumValue>
+	</EnumValues>
+</AxEnum>
