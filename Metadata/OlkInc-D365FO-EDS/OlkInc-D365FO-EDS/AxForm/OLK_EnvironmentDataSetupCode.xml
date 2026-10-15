@@ -6,6 +6,13 @@
 			<Method>
 				<Name>classDeclaration</Name>
 				<Source><![CDATA[
+/// <summary>
+/// Code jobs: methods of code job classes that run in a company when the environment data setup is executed.
+/// </summary>
+/// <remarks>
+/// Create code jobs asks for the environment and company and adds an inactive code job for every code job method.
+/// Activate all, Deactivate all and Delete all work on the code jobs shown in the list, so filter the list first.
+/// </remarks>
 [Form]
 public class OLK_EnvironmentDataSetupCode extends FormRun
 {
@@ -17,7 +24,7 @@ public class OLK_EnvironmentDataSetupCode extends FormRun
 				<Name>environmentId</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// The environment the form is opened for, or the environment of the selected code job.
+    /// The environment the form is opened for, or else the environment of the selected code job, or else the master environment.
     /// </summary>
     private OLK_EdsEnvironmentId environmentId()
     {
@@ -27,7 +34,39 @@ public class OLK_EnvironmentDataSetupCode extends FormRun
             return environment.EnvironmentId;
         }
 
-        return OLK_EnvironmentDataSetupCode.EnvironmentId;
+        if (OLK_EnvironmentDataSetupCode.EnvironmentId)
+        {
+            return OLK_EnvironmentDataSetupCode.EnvironmentId;
+        }
+
+        return OLK_EnvironmentDataSetupTable::findMaster().EnvironmentId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createCodeJobs</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Asks for the environment and company, then creates the missing code jobs for them.
+    /// </summary>
+    private void createCodeJobs()
+    {
+        Dialog      dialog = new Dialog("@OLK_EDSLabel:CreateCodeJobs");
+        DialogField environmentField;
+        DialogField companyField;
+        int         created;
+
+        environmentField = dialog.addFieldValue(extendedTypeStr(OLK_EdsEnvironmentId), element.environmentId());
+        companyField     = dialog.addFieldValue(extendedTypeStr(OLK_EdsDataAreaId), curExt());
+
+        if (dialog.run())
+        {
+            created = OLK_EnvironmentDataSetupExecuteCode::createCodeJobs(environmentField.value(), companyField.value() ? companyField.value() : curExt());
+            info(strFmt("@OLK_EDSLabel:CodeJobsCreated", created, environmentField.value()));
+
+            OLK_EnvironmentDataSetupCode_ds.research();
+        }
     }
 
 ]]></Source>
@@ -44,17 +83,9 @@ public class OLK_EnvironmentDataSetupCode extends FormRun
 						<Source><![CDATA[
         public void clicked()
         {
-            OLK_EdsEnvironmentId environmentId = element.environmentId();
-
             super();
 
-            if (!environmentId)
-            {
-                throw error("@OLK_EDSLabel:EnvironmentIdEmpty");
-            }
-
-            OLK_EnvironmentDataSetupExecuteCode::createCodeJobs(environmentId, curExt());
-            OLK_EnvironmentDataSetupCode_ds.research();
+            element.createCodeJobs();
         }
 
 ]]></Source>
@@ -74,22 +105,8 @@ public class OLK_EnvironmentDataSetupCode extends FormRun
 
             if (Box::yesNo("@OLK_EDSLabel:DeleteAllConfirm", DialogButton::No) == DialogButton::Yes)
             {
-        QueryRun                        queryRun = new QueryRun(OLK_EnvironmentDataSetupCode_ds.queryRun().query());
-        OLK_EnvironmentDataSetupCode    code;
-
-        ttsbegin;
-
-        while (queryRun.next())
-        {
-            code = queryRun.get(tableNum(OLK_EnvironmentDataSetupCode));
-            code.selectForUpdate(true);
-            code.reread();
-                code.delete();
-        }
-
-        ttscommit;
-
-        OLK_EnvironmentDataSetupCode_ds.research();
+                OLK_EnvironmentDataSetupCode::deleteForQuery(OLK_EnvironmentDataSetupCode_ds.queryRun().query());
+                OLK_EnvironmentDataSetupCode_ds.research();
             }
         }
 
@@ -108,23 +125,8 @@ public class OLK_EnvironmentDataSetupCode extends FormRun
         {
             super();
 
-        QueryRun                        queryRun = new QueryRun(OLK_EnvironmentDataSetupCode_ds.queryRun().query());
-        OLK_EnvironmentDataSetupCode    code;
-
-        ttsbegin;
-
-        while (queryRun.next())
-        {
-            code = queryRun.get(tableNum(OLK_EnvironmentDataSetupCode));
-            code.selectForUpdate(true);
-            code.reread();
-            code.Active = NoYes::Yes;
-            code.update();
-        }
-
-        ttscommit;
-
-        OLK_EnvironmentDataSetupCode_ds.research();
+            OLK_EnvironmentDataSetupCode::setActiveForQuery(OLK_EnvironmentDataSetupCode_ds.queryRun().query(), NoYes::Yes);
+            OLK_EnvironmentDataSetupCode_ds.research(true);
         }
 
 ]]></Source>
@@ -142,23 +144,8 @@ public class OLK_EnvironmentDataSetupCode extends FormRun
         {
             super();
 
-        QueryRun                        queryRun = new QueryRun(OLK_EnvironmentDataSetupCode_ds.queryRun().query());
-        OLK_EnvironmentDataSetupCode    code;
-
-        ttsbegin;
-
-        while (queryRun.next())
-        {
-            code = queryRun.get(tableNum(OLK_EnvironmentDataSetupCode));
-            code.selectForUpdate(true);
-            code.reread();
-            code.Active = NoYes::No;
-            code.update();
-        }
-
-        ttscommit;
-
-        OLK_EnvironmentDataSetupCode_ds.research();
+            OLK_EnvironmentDataSetupCode::setActiveForQuery(OLK_EnvironmentDataSetupCode_ds.queryRun().query(), NoYes::No);
+            OLK_EnvironmentDataSetupCode_ds.research(true);
         }
 
 ]]></Source>

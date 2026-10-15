@@ -4,11 +4,11 @@
 	<SourceCode>
 		<Declaration><![CDATA[
 /// <summary>
-/// Runs the environment data setup tests from the web client and shows the results in the infolog.
+/// Runs all environment data setup tests from the web client and shows the results in the infolog.
 /// </summary>
 /// <remarks>
-/// Open it with ?mi=SysClassRunner&cls=OLK_EnvironmentDataSetupTestJob. Each test method runs after its own setUp,
-/// so the run does not depend on the Visual Studio test runner. The tests can also be run from the Test Explorer.
+/// Open it with ?mi=SysClassRunner&cls=OLK_EnvironmentDataSetupTestJob. Each test method runs after its own setUp and before its
+/// own tearDown, so the run does not depend on the Visual Studio test runner. The tests can also be run from the Test Explorer.
 /// </remarks>
 internal final class OLK_EnvironmentDataSetupTestJob
 {
@@ -16,38 +16,45 @@ internal final class OLK_EnvironmentDataSetupTestJob
 ]]></Declaration>
 		<Methods>
 			<Method>
+				<Name>testClasses</Name>
+				<Source><![CDATA[
+    private static container testClasses()
+    {
+        return [
+            classNum(OLK_EnvironmentDataSetupTest),
+            classNum(OLK_EnvironmentDataSetupSqlTest),
+            classNum(OLK_EnvironmentDataSetupCodeJobTest),
+            classNum(OLK_EnvironmentDataSetupDefaultValuesTest),
+            classNum(OLK_EnvironmentDataSetupPersonalizationTest),
+            classNum(OLK_EnvironmentDataSetupLogTest)];
+    }
+
+]]></Source>
+			</Method>
+			<Method>
 				<Name>main</Name>
 				<Source><![CDATA[
     public static void main(Args _args)
     {
-        SysDictClass    dictClass = new SysDictClass(classNum(OLK_EnvironmentDataSetupTest));
-        SetEnumerator   methods   = dictClass.methods(true, false, false).getEnumerator();
-        Set             testNames = new Set(Types::String);
-        SetEnumerator   tests;
-        int             passed;
-        int             failed;
+        container   classes = OLK_EnvironmentDataSetupTestJob::testClasses();
+        int         passed;
+        int         failed;
 
-        while (methods.moveNext())
+        for (int i = 1; i <= conLen(classes); i++)
         {
-            DictMethod dictMethod = methods.current();
+            ClassId         classId   = conPeek(classes, i);
+            SetEnumerator   tests     = OLK_EnvironmentDataSetupTestJob::testMethods(classId).getEnumerator();
 
-            if (dictMethod.getAttribute(classStr(SysTestMethodAttribute)))
+            while (tests.moveNext())
             {
-                testNames.add(dictMethod.name());
-            }
-        }
-
-        tests = testNames.getEnumerator();
-
-        while (tests.moveNext())
-        {
-            if (OLK_EnvironmentDataSetupTestJob::runTest(tests.current()))
-            {
-                passed++;
-            }
-            else
-            {
-                failed++;
+                if (OLK_EnvironmentDataSetupTestJob::runTest(classId, tests.current()))
+                {
+                    passed++;
+                }
+                else
+                {
+                    failed++;
+                }
             }
         }
 
@@ -64,19 +71,46 @@ internal final class OLK_EnvironmentDataSetupTestJob
 ]]></Source>
 			</Method>
 			<Method>
+				<Name>testMethods</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The test methods of a test class, in name order.
+    /// </summary>
+    private static Set testMethods(ClassId _classId)
+    {
+        SetEnumerator   methods   = new SysDictClass(_classId).methods(true, false, false).getEnumerator();
+        Set             testNames = new Set(Types::String);
+
+        while (methods.moveNext())
+        {
+            DictMethod dictMethod = methods.current();
+
+            if (dictMethod.getAttribute(classStr(SysTestMethodAttribute)))
+            {
+                testNames.add(dictMethod.name());
+            }
+        }
+
+        return testNames;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
 				<Name>runTest</Name>
 				<Source><![CDATA[
-    private static boolean runTest(MethodName _testName)
+    private static boolean runTest(ClassId _classId, MethodName _testName)
     {
-        OLK_EnvironmentDataSetupTest    test = new OLK_EnvironmentDataSetupTest();
-        int                             infologStart = infologLine();
-        str                             failure;
+        SysDictClass    dictClass    = new SysDictClass(_classId);
+        SysTestCase     test         = dictClass.makeObject();
+        str             testName     = strFmt('%1.%2', classId2Name(_classId), _testName);
+        int             infologStart = infologLine();
+        str             failure;
 
         try
         {
             test.setUp();
-            new SysDictClass(classNum(OLK_EnvironmentDataSetupTest)).callObject(_testName, test);
-            test.tearDown();
+            dictClass.callObject(_testName, test);
         }
         catch (Exception::CLRError)
         {
@@ -87,13 +121,25 @@ internal final class OLK_EnvironmentDataSetupTestJob
             failure = infologLine() > infologStart ? infolog.text(infologLine()) : 'Unknown error';
         }
 
+        try
+        {
+            test.tearDown();
+        }
+        catch
+        {
+            if (!failure)
+            {
+                failure = infologLine() > infologStart ? infolog.text(infologLine()) : 'tearDown failed';
+            }
+        }
+
         if (failure)
         {
-            error(strFmt('FAILED %1: %2', _testName, failure));
+            error(strFmt('FAILED %1: %2', testName, failure));
             return false;
         }
 
-        info(strFmt('Passed %1', _testName));
+        info(strFmt('Passed %1', testName));
         return true;
     }
 

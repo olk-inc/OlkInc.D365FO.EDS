@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupPersonalizationTest</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Tests the defaults of the Data setup group in the Personalize pop-up of a form control:
+/// Environment id is the master environment and Description is the label of the control.
+/// </summary>
+/// <remarks>
+/// The master environment is changed during a test and put back afterwards.
+/// </remarks>
+[SysTestTarget(classStr(OLK_EnvironmentDataSetupQuickPersonalizationHelper), UtilElementType::Class),
+ SysTestTransaction(TestTransactionMode::None)]
+class OLK_EnvironmentDataSetupPersonalizationTest extends SysTestCase
+{
+    OLK_EdsEnvironmentId originalMaster;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>setUp</Name>
+				<Source><![CDATA[
+    public void setUp()
+    {
+        super();
+
+        OLK_EnvironmentDataSetupTestHelper::ensureTestEnvironments();
+        originalMaster = OLK_EnvironmentDataSetupTable::findMaster().EnvironmentId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>tearDown</Name>
+				<Source><![CDATA[
+    public void tearDown()
+    {
+        this.setMaster(originalMaster);
+
+        super();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>setMaster</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Marks one environment as the master environment; an empty id leaves no master.
+    /// </summary>
+    private void setMaster(OLK_EdsEnvironmentId _environmentId)
+    {
+        OLK_EnvironmentDataSetupTable environment;
+
+        ttsbegin;
+
+        update_recordset environment
+            setting MasterEnvironment = NoYes::No
+            where environment.MasterEnvironment == NoYes::Yes
+               && environment.EnvironmentId     != _environmentId;
+
+        if (_environmentId)
+        {
+            environment = OLK_EnvironmentDataSetupTable::find(_environmentId, true);
+            environment.MasterEnvironment = NoYes::Yes;
+            this.assertTrue(environment.validateWrite(), 'The environment cannot be made the master environment.');
+            environment.update();
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testEnvironmentDefaultsToMaster</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testEnvironmentDefaultsToMaster()
+    {
+        this.setMaster(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId);
+        this.assertEquals(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, OLK_EnvironmentDataSetupQuickPersonalizationHelper::defaultEnvironmentId(), 'The pop-up does not propose the master environment DEV.');
+
+        this.setMaster(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId);
+        this.assertEquals(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId, OLK_EnvironmentDataSetupQuickPersonalizationHelper::defaultEnvironmentId(), 'The pop-up does not follow a new master environment.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testNoMasterLeavesEnvironmentEmpty</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testNoMasterLeavesEnvironmentEmpty()
+    {
+        this.setMaster('');
+        this.assertEquals('', OLK_EnvironmentDataSetupQuickPersonalizationHelper::defaultEnvironmentId(), 'An environment was proposed although none is the master.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testOnlyOneMaster</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testOnlyOneMaster()
+    {
+        OLK_EnvironmentDataSetupTable environment;
+
+        this.setMaster(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId);
+
+        environment = OLK_EnvironmentDataSetupTable::find(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId);
+        environment.MasterEnvironment = NoYes::Yes;
+
+        this.assertFalse(environment.validateWrite(), 'A second master environment was accepted.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testDescriptionDefaultsToLabel</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testDescriptionDefaultsToLabel()
+    {
+        this.assertEquals('Customer group', OLK_EnvironmentDataSetupQuickPersonalizationHelper::defaultDescription('Customer group'), 'The description is not the label shown in the pop-up.');
+        this.assertEquals('', OLK_EnvironmentDataSetupQuickPersonalizationHelper::defaultDescription(''), 'A description was proposed without a label.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testLongLabelIsCut</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testLongLabelIsCut()
+    {
+        int         maxLength = new SysDictType(extendedTypeNum(Description)).stringLen();
+        str         label     = strRep('x', maxLength + 20);
+        Description description = OLK_EnvironmentDataSetupQuickPersonalizationHelper::defaultDescription(label);
+
+        this.assertEquals(maxLength, strLen(description), 'A long label was not cut to the length of a description.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testDescriptionFromControlLabel</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// When the pop-up shows no label, the label of the control itself is used.
+    /// </summary>
+    [SysTestMethod]
+    public void testDescriptionFromControlLabel()
+    {
+        FormRun             formRun = classFactory.formRunClass(new Args(formStr(CustGroup)));
+        FormStringControl   control;
+
+        formRun.init();
+
+        control = formRun.design().controlName('Grid_CustGroup');
+
+        if (!control)
+        {
+            control = formRun.design().controlName('CustGroup_CustGroup');
+        }
+
+        this.assertNotNull(control, 'The customer group control was not found on the CustGroup form.');
+        this.assertEquals(subStr(control.label(), 1, new SysDictType(extendedTypeNum(Description)).stringLen()),
+            OLK_EnvironmentDataSetupQuickPersonalizationHelper::defaultDescription('', control), 'The description is not the label of the control.');
+        this.assertTrue(control.label() != '', 'The control has no label.');
+
+        formRun.close();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

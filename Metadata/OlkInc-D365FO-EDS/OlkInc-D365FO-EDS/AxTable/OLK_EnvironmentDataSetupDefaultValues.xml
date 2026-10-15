@@ -59,7 +59,7 @@ public class OLK_EnvironmentDataSetupDefaultValues extends common
 		</Methods>
 	</SourceCode>
 	<ConfigurationKey>OLK_EdsConfigKey</ConfigurationKey>
-	<DeveloperDocumentation>@OLK_EDSLabel:DefaultValues</DeveloperDocumentation>
+	<DeveloperDocumentation>@OLK_EDSLabel:DefaultValuesHelp</DeveloperDocumentation>
 	<Label>@OLK_EDSLabel:DefaultValues</Label>
 	<TitleField1>Id</TitleField1>
 	<TitleField2>Description</TitleField2>

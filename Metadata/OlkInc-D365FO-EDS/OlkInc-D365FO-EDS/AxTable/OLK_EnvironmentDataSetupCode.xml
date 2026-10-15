@@ -69,7 +69,8 @@ public class OLK_EnvironmentDataSetupCode extends common
     /// <summary>
     /// Creates an inactive code job unless it already exists.
     /// </summary>
-    public static void createCode(
+    /// <returns>true if the code job was created; false if it already existed.</returns>
+    public static boolean createCode(
         OLK_EdsEnvironmentId    _environmentId,
         OLK_EdsDataAreaId       _dataAreaId,
         OLK_EdsClassId          _classId,
@@ -80,7 +81,7 @@ public class OLK_EnvironmentDataSetupCode extends common
 
         if (OLK_EnvironmentDataSetupCode::find(_environmentId, _dataAreaId, _classId, _methodName).RecId)
         {
-            return;
+            return false;
         }
 
         code.EnvironmentId  = _environmentId;
@@ -90,6 +91,82 @@ public class OLK_EnvironmentDataSetupCode extends common
         code.Description    = _description;
         code.Active         = NoYes::No;
         code.insert();
+
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>setActiveForQuery</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Activates or deactivates every code job a query selects, as the Activate all and Deactivate all buttons do.
+    /// </summary>
+    /// <param name = "_query">A query on code jobs, for example the query of the Code jobs form.</param>
+    /// <param name = "_active">Yes to activate the code jobs; No to deactivate them.</param>
+    /// <returns>The number of code jobs that were changed.</returns>
+    public static int setActiveForQuery(Query _query, OLK_EdsActive _active)
+    {
+        QueryRun                        queryRun = new QueryRun(_query);
+        OLK_EnvironmentDataSetupCode    code;
+        int                             changed;
+
+        ttsbegin;
+
+        while (queryRun.next())
+        {
+            code = queryRun.get(tableNum(OLK_EnvironmentDataSetupCode));
+
+            if (code.Active != _active)
+            {
+                code.selectForUpdate(true);
+                code.reread();
+                code.Active = _active;
+                code.update();
+                changed++;
+            }
+        }
+
+        ttscommit;
+
+        return changed;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>deleteForQuery</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Deletes every code job a query selects, as the Delete all button does.
+    /// </summary>
+    /// <param name = "_query">A query on code jobs, for example the query of the Code jobs form.</param>
+    /// <returns>The number of code jobs that were deleted.</returns>
+    public static int deleteForQuery(Query _query)
+    {
+        QueryRun                        queryRun = new QueryRun(_query);
+        OLK_EnvironmentDataSetupCode    code;
+        int                             deleted;
+
+        ttsbegin;
+
+        while (queryRun.next())
+        {
+            code = queryRun.get(tableNum(OLK_EnvironmentDataSetupCode));
+            code.selectForUpdate(true);
+            code.reread();
+
+            if (code.RecId)
+            {
+                code.delete();
+                deleted++;
+            }
+        }
+
+        ttscommit;
+
+        return deleted;
     }
 
 ]]></Source>

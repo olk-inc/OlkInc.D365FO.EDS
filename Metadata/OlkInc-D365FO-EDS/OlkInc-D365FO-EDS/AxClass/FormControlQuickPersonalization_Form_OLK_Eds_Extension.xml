@@ -7,6 +7,9 @@
 /// Shows the environment data setup group in the personalization pop-up only for controls bound to a data source,
 /// and only to users who can maintain the data setup.
 /// </summary>
+/// <remarks>
+/// The environment id defaults to the master environment and the description to the label of the personalized control.
+/// </remarks>
 [ExtensionOf(formStr(FormControlQuickPersonalization))]
 final class FormControlQuickPersonalization_Form_OLK_Eds_Extension
 {
@@ -29,6 +32,37 @@ final class FormControlQuickPersonalization_Form_OLK_Eds_Extension
                 && personalizedControl.dataSourceObject()
                 && isConfigurationkeyEnabled(configurationKeyNum(OLK_EdsConfigKey))
                 && hasMenuItemAccess(menuItemDisplayStr(OLK_EnvironmentDataSetupTrans), MenuItemType::Display));
+
+            if (edsGroup.visible())
+            {
+                this.olkEdsSetDefaults(personalizedControl);
+            }
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>olkEdsSetDefaults</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Fills the environment id with the master environment and the description with the label shown in the pop-up.
+    /// </summary>
+    /// <param name = "_personalizedControl">The control the pop-up is opened for.</param>
+    private void olkEdsSetDefaults(FormControl _personalizedControl)
+    {
+        FormStringControl environmentControl = this.design().controlName(formControlStr(FormControlQuickPersonalization, OLK_EnvironmentDataSetupEnvironmentId));
+        FormStringControl descriptionControl = this.design().controlName(formControlStr(FormControlQuickPersonalization, OLK_EnvironmentDataSetupDescription));
+        FormStringControl labelControl       = this.design().controlName(formControlStr(FormControlQuickPersonalization, OverriddenLabel));
+
+        if (environmentControl && !environmentControl.text())
+        {
+            environmentControl.text(OLK_EnvironmentDataSetupQuickPersonalizationHelper::defaultEnvironmentId());
+        }
+
+        if (descriptionControl && !descriptionControl.text())
+        {
+            descriptionControl.text(OLK_EnvironmentDataSetupQuickPersonalizationHelper::defaultDescription(labelControl ? labelControl.text() : '', _personalizedControl));
         }
     }
 

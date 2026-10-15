@@ -107,9 +107,21 @@ abstract class OLK_EnvironmentDataSetupExecuteCode
     /// </summary>
     /// <param name = "_environmentId">The environment.</param>
     /// <param name = "_dataAreaId">The company the code jobs run in.</param>
-    public static void createCodeJobs(OLK_EdsEnvironmentId _environmentId, OLK_EdsDataAreaId _dataAreaId)
+    /// <returns>The number of code jobs that were created.</returns>
+    public static int createCodeJobs(OLK_EdsEnvironmentId _environmentId, OLK_EdsDataAreaId _dataAreaId)
     {
-        ListEnumerator classes = new DictClass(classNum(OLK_EnvironmentDataSetupExecuteCode)).extendedBy().getEnumerator();
+        ListEnumerator  classes = new DictClass(classNum(OLK_EnvironmentDataSetupExecuteCode)).extendedBy().getEnumerator();
+        int             created;
+
+        if (!_environmentId)
+        {
+            throw error("@OLK_EDSLabel:EnvironmentIdEmpty");
+        }
+
+        if (!OLK_EnvironmentDataSetupTable::exist(_environmentId))
+        {
+            throw error(strFmt("@OLK_EDSLabel:EnvironmentNotFound", _environmentId));
+        }
 
         ttsbegin;
 
@@ -123,14 +135,17 @@ abstract class OLK_EnvironmentDataSetupExecuteCode
                 DictMethod                          dictMethod = methods.current();
                 OLK_EnvironmentDataSetupAttribute   attribute  = OLK_EnvironmentDataSetupExecuteCode::codeJobAttribute(classId, dictMethod.name());
 
-                if (attribute)
+                if (attribute
+                    && OLK_EnvironmentDataSetupCode::createCode(_environmentId, _dataAreaId, classId, dictMethod.name(), attribute.parmDescription()))
                 {
-                    OLK_EnvironmentDataSetupCode::createCode(_environmentId, _dataAreaId, classId, dictMethod.name(), attribute.parmDescription());
+                    created++;
                 }
             }
         }
 
         ttscommit;
+
+        return created;
     }
 
 ]]></Source>

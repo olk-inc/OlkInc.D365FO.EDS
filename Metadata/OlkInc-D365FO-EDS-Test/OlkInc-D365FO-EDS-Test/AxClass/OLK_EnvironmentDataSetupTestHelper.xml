@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupTestHelper</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Shared set up and checks for the environment data setup tests.
+/// </summary>
+/// <remarks>
+/// The tests run without a test transaction, so everything they create is committed and can be reviewed in the forms afterwards.
+/// </remarks>
+public static class OLK_EnvironmentDataSetupTestHelper
+{
+    public const str DevEnvironmentId   = 'DEV';
+    public const str TestEnvironmentId  = 'TEST';
+    public const str LogEnvironmentId   = 'EDSLOG';
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>ensureEnvironment</Name>
+				<Source><![CDATA[
+    public static void ensureEnvironment(OLK_EdsEnvironmentId _environmentId, Description _description)
+    {
+        OLK_EnvironmentDataSetupTable environment;
+
+        if (!OLK_EnvironmentDataSetupTable::exist(_environmentId))
+        {
+            environment.EnvironmentId = _environmentId;
+            environment.Description   = _description;
+            environment.insert();
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>ensureTestEnvironments</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates the DEV and TEST environments when they do not exist.
+    /// </summary>
+    public static void ensureTestEnvironments()
+    {
+        ttsbegin;
+        OLK_EnvironmentDataSetupTestHelper::ensureEnvironment(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, 'Development');
+        OLK_EnvironmentDataSetupTestHelper::ensureEnvironment(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId, 'Test');
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>execute</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Executes the data setup of an environment, as the Execute environment data setup action does.
+    /// </summary>
+    public static void execute(OLK_EdsEnvironmentId _environmentId, NoYesId _data, NoYesId _code, NoYesId _sql)
+    {
+        OLK_EnvironmentDataSetupExecuteContract contract = new OLK_EnvironmentDataSetupExecuteContract();
+
+        contract.parmEnvironmentId(_environmentId);
+        contract.parmExecuteData(_data);
+        contract.parmExecuteCode(_code);
+        contract.parmExecuteSql(_sql);
+
+        new OLK_EnvironmentDataSetupExecuteService().execute(contract);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>lastLogRecId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The newest log entry; entries with a higher record id were written after this call.
+    /// </summary>
+    public static RecId lastLogRecId()
+    {
+        OLK_EnvironmentDataSetupLog log;
+
+        select maxof(RecId) from log;
+
+        return log.RecId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>logCountSince</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Counts the log entries of an environment and type written after a given entry.
+    /// </summary>
+    public static int logCountSince(RecId _fromRecId, OLK_EdsEnvironmentId _environmentId, OLK_EdsLogType _type)
+    {
+        OLK_EnvironmentDataSetupLog log;
+
+        select count(RecId) from log
+            where log.RecId         >  _fromRecId
+               && log.EnvironmentId == _environmentId
+               && log.Type          == _type;
+
+        return int642int(log.RecId);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>findLogSince</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds the newest log entry for a data setup line, code job or SQL job written after a given entry.
+    /// </summary>
+    public static OLK_EnvironmentDataSetupLog findLogSince(RecId _fromRecId, OLK_EdsEnvironmentId _environmentId, OLK_EdsLogType _type, OLK_EdsLogId _id)
+    {
+        OLK_EnvironmentDataSetupLog log;
+
+        select firstonly log
+            order by RecId desc
+            where log.RecId         >  _fromRecId
+               && log.EnvironmentId == _environmentId
+               && log.Type          == _type
+               && log.Id            == _id;
+
+        return log;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>codeJobLogId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The id a code job is logged with: class name and method name.
+    /// </summary>
+    public static OLK_EdsLogId codeJobLogId(ClassId _classId, OLK_EdsMethodName _methodName)
+    {
+        return strFmt('%1.%2', classId2Name(_classId), _methodName);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>findCustGroup</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Reads a customer group from the database, past the table cache, because SQL jobs change it outside of X++.
+    /// </summary>
+    public static CustGroup findCustGroup(CustGroupId _custGroupId, boolean _forUpdate = false)
+    {
+        CustGroup custGroup;
+
+        flush CustGroup;
+
+        custGroup.disableCache(true);
+        custGroup.selectForUpdate(_forUpdate);
+
+        select firstonly custGroup
+            where custGroup.CustGroup == _custGroupId;
+
+        return custGroup;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>deleteCustGroup</Name>
+				<Source><![CDATA[
+    public static void deleteCustGroup(CustGroupId _custGroupId)
+    {
+        CustGroup custGroup;
+
+        ttsbegin;
+
+        custGroup = OLK_EnvironmentDataSetupTestHelper::findCustGroup(_custGroupId, true);
+
+        if (custGroup.RecId)
+        {
+            custGroup.delete();
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>ensureSqlJob</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates or replaces a SQL job of an environment in the current company.
+    /// </summary>
+    public static void ensureSqlJob(OLK_EdsEnvironmentId _environmentId, OLK_EdsSqlId _id, Description _description, OLK_EdsSqlText _sql, OLK_EdsActive _active)
+    {
+        OLK_EnvironmentDataSetupSQL sqlJob;
+
+        ttsbegin;
+
+        select forupdate firstonly sqlJob
+            where sqlJob.EnvironmentId == _environmentId
+               && sqlJob.RefDataAreaId == curExt()
+               && sqlJob.Id            == _id;
+
+        sqlJob.EnvironmentId = _environmentId;
+        sqlJob.RefDataAreaId = curExt();
+        sqlJob.Id            = _id;
+        sqlJob.Description   = _description;
+        sqlJob.SQL           = _sql;
+        sqlJob.Active        = _active;
+
+        if (sqlJob.RecId)
+        {
+            sqlJob.update();
+        }
+        else
+        {
+            sqlJob.insert();
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>setSqlJobActive</Name>
+				<Source><![CDATA[
+    public static void setSqlJobActive(OLK_EdsEnvironmentId _environmentId, OLK_EdsSqlId _id, OLK_EdsActive _active)
+    {
+        OLK_EnvironmentDataSetupSQL sqlJob;
+
+        ttsbegin;
+
+        update_recordset sqlJob
+            setting Active = _active
+            where sqlJob.EnvironmentId == _environmentId
+               && sqlJob.RefDataAreaId == curExt()
+               && sqlJob.Id            == _id;
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>codeJobQuery</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A query on the code jobs of an environment, optionally of one class, like the filtered list of the Code jobs form.
+    /// </summary>
+    public static Query codeJobQuery(OLK_EdsEnvironmentId _environmentId, ClassId _classId = 0)
+    {
+        Query                   query = new Query();
+        QueryBuildDataSource    qbds  = query.addDataSource(tableNum(OLK_EnvironmentDataSetupCode));
+
+        qbds.addRange(fieldNum(OLK_EnvironmentDataSetupCode, EnvironmentId)).value(queryValue(_environmentId));
+
+        if (_classId)
+        {
+            qbds.addRange(fieldNum(OLK_EnvironmentDataSetupCode, ClassId)).value(queryValue(_classId));
+        }
+
+        return query;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>activateOnlyCodeJob</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Makes one code job the only active code job of an environment, creating the code jobs first when needed.
+    /// </summary>
+    public static void activateOnlyCodeJob(OLK_EdsEnvironmentId _environmentId, ClassId _classId, OLK_EdsMethodName _methodName)
+    {
+        OLK_EnvironmentDataSetupCode code;
+
+        OLK_EnvironmentDataSetupExecuteCode::createCodeJobs(_environmentId, curExt());
+        OLK_EnvironmentDataSetupCode::setActiveForQuery(OLK_EnvironmentDataSetupTestHelper::codeJobQuery(_environmentId), NoYes::No);
+
+        ttsbegin;
+
+        code = OLK_EnvironmentDataSetupCode::find(_environmentId, curExt(), _classId, _methodName, true);
+        code.Active = NoYes::Yes;
+        code.update();
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>clearEnvironmentLines</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Removes the data setup lines, code jobs and SQL jobs of an environment, so a test controls exactly what runs.
+    /// </summary>
+    public static void clearEnvironmentLines(OLK_EdsEnvironmentId _environmentId)
+    {
+        OLK_EnvironmentDataSetupTrans   trans;
+        OLK_EnvironmentDataSetupCode    code;
+        OLK_EnvironmentDataSetupSQL     sqlJob;
+
+        ttsbegin;
+
+        delete_from trans  where trans.EnvironmentId  == _environmentId;
+        delete_from code   where code.EnvironmentId   == _environmentId;
+        delete_from sqlJob where sqlJob.EnvironmentId == _environmentId;
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

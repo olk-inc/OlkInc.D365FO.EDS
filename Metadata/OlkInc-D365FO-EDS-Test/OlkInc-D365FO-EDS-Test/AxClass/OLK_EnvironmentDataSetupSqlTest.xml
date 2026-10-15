@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupSqlTest</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Tests the SQL jobs of the environment data setup.
+/// </summary>
+/// <remarks>
+/// Customer group EDSSQL is created with insert(). DEV and TEST each have two SQL jobs: CUSTGROUP_UPDATE sets the name of the group
+/// to that environment's name, and CUSTGROUP_DELETE deletes the group. Both use %DataAreaId% for the company.
+/// The jobs are left in the SQL jobs form, inactive, after the tests.
+/// </remarks>
+[SysTestTarget(classStr(OLK_EnvironmentDataSetupExecuteService), UtilElementType::Class),
+ SysTestTransaction(TestTransactionMode::None)]
+class OLK_EnvironmentDataSetupSqlTest extends SysTestCase
+{
+    public const str CustGroupId    = 'EDSSQL';
+    public const str OriginalName   = 'EDS SQL customer group';
+    public const str DevName        = 'EDS SQL customer group DEV';
+    public const str TestName       = 'EDS SQL customer group TEST';
+    public const str UpdateJobId    = 'CUSTGROUP_UPDATE';
+    public const str DeleteJobId    = 'CUSTGROUP_DELETE';
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>setUp</Name>
+				<Source><![CDATA[
+    public void setUp()
+    {
+        super();
+
+        OLK_EnvironmentDataSetupTestHelper::ensureTestEnvironments();
+
+        this.ensureSqlJobs(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, OLK_EnvironmentDataSetupSqlTest::DevName);
+        this.ensureSqlJobs(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId, OLK_EnvironmentDataSetupSqlTest::TestName);
+
+        this.createCustGroup();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>tearDown</Name>
+				<Source><![CDATA[
+    public void tearDown()
+    {
+        OLK_EnvironmentDataSetupTestHelper::setSqlJobActive(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, OLK_EnvironmentDataSetupSqlTest::UpdateJobId, NoYes::No);
+        OLK_EnvironmentDataSetupTestHelper::setSqlJobActive(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, OLK_EnvironmentDataSetupSqlTest::DeleteJobId, NoYes::No);
+        OLK_EnvironmentDataSetupTestHelper::setSqlJobActive(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId, OLK_EnvironmentDataSetupSqlTest::UpdateJobId, NoYes::No);
+        OLK_EnvironmentDataSetupTestHelper::setSqlJobActive(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId, OLK_EnvironmentDataSetupSqlTest::DeleteJobId, NoYes::No);
+
+        super();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>ensureSqlJobs</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates the inactive update and delete SQL jobs of an environment.
+    /// </summary>
+    private void ensureSqlJobs(OLK_EdsEnvironmentId _environmentId, Description _name)
+    {
+        str whereClause = " WHERE CUSTGROUP = '" + OLK_EnvironmentDataSetupSqlTest::CustGroupId + "' AND DATAAREAID = '%DataAreaId%'";
+
+        OLK_EnvironmentDataSetupTestHelper::ensureSqlJob(_environmentId, OLK_EnvironmentDataSetupSqlTest::UpdateJobId,
+            'Set the EDSSQL customer group name',
+            "UPDATE CUSTGROUP SET NAME = '" + _name + "'" + whereClause,
+            NoYes::No);
+
+        OLK_EnvironmentDataSetupTestHelper::ensureSqlJob(_environmentId, OLK_EnvironmentDataSetupSqlTest::DeleteJobId,
+            'Delete the EDSSQL customer group',
+            'DELETE FROM CUSTGROUP' + whereClause,
+            NoYes::No);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createCustGroup</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates customer group EDSSQL with insert(), replacing it when it is left over from an earlier run.
+    /// </summary>
+    private void createCustGroup()
+    {
+        CustGroup custGroup;
+
+        OLK_EnvironmentDataSetupTestHelper::deleteCustGroup(OLK_EnvironmentDataSetupSqlTest::CustGroupId);
+
+        ttsbegin;
+
+        custGroup.CustGroup = OLK_EnvironmentDataSetupSqlTest::CustGroupId;
+        custGroup.Name      = OLK_EnvironmentDataSetupSqlTest::OriginalName;
+        custGroup.insert();
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>runSqlJob</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Runs one SQL job of an environment and checks that it is logged as OK with the number of rows it changed.
+    /// </summary>
+    private void runSqlJob(OLK_EdsEnvironmentId _environmentId, OLK_EdsSqlId _jobId, str _expectedRows)
+    {
+        RecId                       logStart = OLK_EnvironmentDataSetupTestHelper::lastLogRecId();
+        OLK_EnvironmentDataSetupLog log;
+
+        OLK_EnvironmentDataSetupTestHelper::setSqlJobActive(_environmentId, _jobId, NoYes::Yes);
+        OLK_EnvironmentDataSetupTestHelper::execute(_environmentId, NoYes::No, NoYes::No, NoYes::Yes);
+        OLK_EnvironmentDataSetupTestHelper::setSqlJobActive(_environmentId, _jobId, NoYes::No);
+
+        log = OLK_EnvironmentDataSetupTestHelper::findLogSince(logStart, _environmentId, OLK_EdsLogType::SQL, _jobId);
+
+        this.assertTrue(log.RecId != 0, strFmt('SQL job %1 of %2 was not logged.', _jobId, _environmentId));
+        this.assertEquals(OLK_EdsLogStatus::OK, log.Status, strFmt('SQL job %1 of %2 failed: %3', _jobId, _environmentId, log.ErrorTxt));
+        this.assertEquals(_expectedRows, log.Value, strFmt('SQL job %1 of %2 did not change the expected number of rows.', _jobId, _environmentId));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>insertUpdateDelete</Name>
+				<Source><![CDATA[
+    private void insertUpdateDelete(OLK_EdsEnvironmentId _environmentId, Description _expectedName)
+    {
+        CustGroup custGroup = OLK_EnvironmentDataSetupTestHelper::findCustGroup(OLK_EnvironmentDataSetupSqlTest::CustGroupId);
+
+        this.assertTrue(custGroup.RecId != 0, 'insert() did not create the customer group.');
+        this.assertEquals(OLK_EnvironmentDataSetupSqlTest::OriginalName, custGroup.Name, 'The customer group does not have its original name.');
+
+        this.runSqlJob(_environmentId, OLK_EnvironmentDataSetupSqlTest::UpdateJobId, '1');
+
+        custGroup = OLK_EnvironmentDataSetupTestHelper::findCustGroup(OLK_EnvironmentDataSetupSqlTest::CustGroupId);
+        this.assertEquals(_expectedName, custGroup.Name, strFmt('The %1 update SQL job did not set the name.', _environmentId));
+
+        this.runSqlJob(_environmentId, OLK_EnvironmentDataSetupSqlTest::DeleteJobId, '1');
+
+        custGroup = OLK_EnvironmentDataSetupTestHelper::findCustGroup(OLK_EnvironmentDataSetupSqlTest::CustGroupId);
+        this.assertFalse(custGroup.RecId != 0, strFmt('The %1 delete SQL job did not remove the customer group.', _environmentId));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testInsertUpdateDeleteInDev</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A customer group created with insert() is renamed and then removed by the SQL jobs of DEV.
+    /// </summary>
+    [SysTestMethod]
+    public void testInsertUpdateDeleteInDev()
+    {
+        this.insertUpdateDelete(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, OLK_EnvironmentDataSetupSqlTest::DevName);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testInsertUpdateDeleteInTest</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A customer group created with insert() is renamed and then removed by the SQL jobs of TEST.
+    /// </summary>
+    [SysTestMethod]
+    public void testInsertUpdateDeleteInTest()
+    {
+        this.insertUpdateDelete(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId, OLK_EnvironmentDataSetupSqlTest::TestName);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testSwitchingEnvironments</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The update SQL job of each environment writes that environment's name, whichever ran before.
+    /// </summary>
+    [SysTestMethod]
+    public void testSwitchingEnvironments()
+    {
+        this.runSqlJob(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, OLK_EnvironmentDataSetupSqlTest::UpdateJobId, '1');
+        this.assertEquals(OLK_EnvironmentDataSetupSqlTest::DevName, OLK_EnvironmentDataSetupTestHelper::findCustGroup(OLK_EnvironmentDataSetupSqlTest::CustGroupId).Name, 'DEV was not applied.');
+
+        this.runSqlJob(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId, OLK_EnvironmentDataSetupSqlTest::UpdateJobId, '1');
+        this.assertEquals(OLK_EnvironmentDataSetupSqlTest::TestName, OLK_EnvironmentDataSetupTestHelper::findCustGroup(OLK_EnvironmentDataSetupSqlTest::CustGroupId).Name, 'TEST did not replace the DEV name.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testNoMatchingRowsIsLoggedAsZero</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A delete that finds nothing to delete is not an error; the log shows 0 rows.
+    /// </summary>
+    [SysTestMethod]
+    public void testNoMatchingRowsIsLoggedAsZero()
+    {
+        this.runSqlJob(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, OLK_EnvironmentDataSetupSqlTest::DeleteJobId, '1');
+        this.runSqlJob(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, OLK_EnvironmentDataSetupSqlTest::DeleteJobId, '0');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testInactiveSqlJobIsNotExecuted</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testInactiveSqlJobIsNotExecuted()
+    {
+        RecId logStart = OLK_EnvironmentDataSetupTestHelper::lastLogRecId();
+
+        OLK_EnvironmentDataSetupTestHelper::execute(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, NoYes::No, NoYes::No, NoYes::Yes);
+
+        this.assertEquals(OLK_EnvironmentDataSetupSqlTest::OriginalName, OLK_EnvironmentDataSetupTestHelper::findCustGroup(OLK_EnvironmentDataSetupSqlTest::CustGroupId).Name, 'An inactive SQL job changed the customer group.');
+        this.assertFalse(OLK_EnvironmentDataSetupTestHelper::findLogSince(logStart, OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, OLK_EdsLogType::SQL, OLK_EnvironmentDataSetupSqlTest::UpdateJobId).RecId != 0, 'An inactive SQL job was logged.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testSqlNotRunWhenNotSelected</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Active SQL jobs do not run when the setup is executed with Execute SQL = No.
+    /// </summary>
+    [SysTestMethod]
+    public void testSqlNotRunWhenNotSelected()
+    {
+        OLK_EnvironmentDataSetupTestHelper::setSqlJobActive(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, OLK_EnvironmentDataSetupSqlTest::DeleteJobId, NoYes::Yes);
+
+        OLK_EnvironmentDataSetupTestHelper::execute(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, NoYes::No, NoYes::No, NoYes::No);
+
+        this.assertTrue(OLK_EnvironmentDataSetupTestHelper::findCustGroup(OLK_EnvironmentDataSetupSqlTest::CustGroupId).RecId != 0, 'The SQL job ran although Execute SQL was No.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testOnlySingleDmlStatementsAreAllowed</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testOnlySingleDmlStatementsAreAllowed()
+    {
+        OLK_EnvironmentDataSetupSQL sqlJob;
+
+        this.assertTrue(OLK_EnvironmentDataSetupSQL::isAllowedStatement("UPDATE CUSTGROUP SET NAME = 'X' WHERE CUSTGROUP = 'Y'"), 'UPDATE was rejected.');
+        this.assertTrue(OLK_EnvironmentDataSetupSQL::isAllowedStatement("  delete from CUSTGROUP where CUSTGROUP = 'Y';"), 'DELETE with a trailing semicolon was rejected.');
+        this.assertTrue(OLK_EnvironmentDataSetupSQL::isAllowedStatement("INSERT INTO X (A) VALUES (1)"), 'INSERT was rejected.');
+
+        this.assertFalse(OLK_EnvironmentDataSetupSQL::isAllowedStatement('SELECT * FROM CUSTGROUP'), 'SELECT was accepted.');
+        this.assertFalse(OLK_EnvironmentDataSetupSQL::isAllowedStatement('DROP TABLE CUSTGROUP'), 'DROP was accepted.');
+        this.assertFalse(OLK_EnvironmentDataSetupSQL::isAllowedStatement('TRUNCATE TABLE CUSTGROUP'), 'TRUNCATE was accepted.');
+        this.assertFalse(OLK_EnvironmentDataSetupSQL::isAllowedStatement("UPDATE CUSTGROUP SET NAME = 'X'; DROP TABLE CUSTGROUP"), 'A second statement was accepted.');
+
+        sqlJob.EnvironmentId = OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId;
+        sqlJob.Id            = 'NOT_ALLOWED';
+        sqlJob.SQL           = 'DROP TABLE CUSTGROUP';
+        this.assertFalse(sqlJob.validateWrite(), 'The SQL jobs form accepts a DROP statement.');
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>
