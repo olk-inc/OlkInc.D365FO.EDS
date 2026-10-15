@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupLogTest</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Tests that every action of an execution is written to the Environment data setup log: each data setup line, each active code job
+/// and each active SQL job gets one log entry with its type, id and status, and failures are logged with their error text.
+/// </summary>
+/// <remarks>
+/// Environment EDSLOG holds exactly the lines each test sets up, including lines that fail on purpose; DEV is not changed for that.
+/// The log entries are kept, so they can be reviewed in the Environment data setup log form.
+/// </remarks>
+[SysTestTarget(classStr(OLK_EnvironmentDataSetupExecuteService), UtilElementType::Class),
+ SysTestTransaction(TestTransactionMode::None)]
+class OLK_EnvironmentDataSetupLogTest extends SysTestCase
+{
+    public const str CustGroupId    = 'EDSLOG';
+    public const str CustGroupName  = 'EDS log customer group';
+    public const str LoggedName     = 'EDS log customer group EDSLOG';
+
+    CustGroup   custGroup;
+    ClassId     sampleClassId;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>setUp</Name>
+				<Source><![CDATA[
+    public void setUp()
+    {
+        super();
+
+        sampleClassId = classNum(OLK_EnvironmentDataSetupExecuteCode_Sample);
+
+        ttsbegin;
+        OLK_EnvironmentDataSetupTestHelper::ensureEnvironment(OLK_EnvironmentDataSetupTestHelper::LogEnvironmentId, 'Log tests');
+        ttscommit;
+
+        OLK_EnvironmentDataSetupTestHelper::clearEnvironmentLines(OLK_EnvironmentDataSetupTestHelper::LogEnvironmentId);
+        OLK_EnvironmentDataSetupExecuteCode_Sample::createSampleDefaultValues();
+
+        ttsbegin;
+
+        custGroup = OLK_EnvironmentDataSetupTestHelper::findCustGroup(OLK_EnvironmentDataSetupLogTest::CustGroupId, true);
+
+        if (!custGroup.RecId)
+        {
+            custGroup.CustGroup = OLK_EnvironmentDataSetupLogTest::CustGroupId;
+            custGroup.Name      = OLK_EnvironmentDataSetupLogTest::CustGroupName;
+            custGroup.insert();
+        }
+        else
+        {
+            custGroup.Name = OLK_EnvironmentDataSetupLogTest::CustGroupName;
+            custGroup.update();
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addDataLine</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds a data setup line for the name of the log customer group, or for a record id that does not exist.
+    /// </summary>
+    private OLK_EnvironmentDataSetupTrans addDataLine(RefRecId _refRecId, Description _description)
+    {
+        OLK_EnvironmentDataSetupTrans trans;
+
+        ttsbegin;
+
+        trans.EnvironmentId = OLK_EnvironmentDataSetupTestHelper::LogEnvironmentId;
+        trans.RefDataAreaId = custGroup.DataAreaId;
+        trans.RefTableId    = tableNum(CustGroup);
+        trans.RefRecId      = _refRecId;
+        trans.FieldId       = fieldNum(CustGroup, Name);
+        trans.Description   = _description;
+        trans.Value         = OLK_EnvironmentDataSetupLogTest::LoggedName;
+        trans.insert();
+
+        ttscommit;
+
+        return trans;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addCodeJob</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds an active code job. Inserted without validation, so a method that is not a code job can be added to test the failure.
+    /// </summary>
+    private void addCodeJob(ClassId _classId, OLK_EdsMethodName _methodName)
+    {
+        OLK_EnvironmentDataSetupCode code;
+
+        ttsbegin;
+
+        code.EnvironmentId = OLK_EnvironmentDataSetupTestHelper::LogEnvironmentId;
+        code.RefDataAreaId = curExt();
+        code.ClassId       = _classId;
+        code.MethodName    = _methodName;
+        code.Description   = _methodName;
+        code.Active        = NoYes::Yes;
+        code.insert();
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addSqlJob</Name>
+				<Source><![CDATA[
+    private void addSqlJob(OLK_EdsSqlId _id, OLK_EdsSqlText _sql, OLK_EdsActive _active = NoYes::Yes)
+    {
+        OLK_EnvironmentDataSetupTestHelper::ensureSqlJob(OLK_EnvironmentDataSetupTestHelper::LogEnvironmentId, _id, _id, _sql, _active);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>execute</Name>
+				<Source><![CDATA[
+    private void execute()
+    {
+        OLK_EnvironmentDataSetupTestHelper::execute(OLK_EnvironmentDataSetupTestHelper::LogEnvironmentId, NoYes::Yes, NoYes::Yes, NoYes::Yes);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>assertLogged</Name>
+				<Source><![CDATA[
+    private OLK_EnvironmentDataSetupLog assertLogged(RecId _logStart, OLK_EdsLogType _type, OLK_EdsLogId _id, OLK_EdsLogStatus _status)
+    {
+        OLK_EnvironmentDataSetupLog log = OLK_EnvironmentDataSetupTestHelper::findLogSince(_logStart, OLK_EnvironmentDataSetupTestHelper::LogEnvironmentId, _type, _id);
+
+        this.assertTrue(log.RecId != 0, strFmt('%1 %2 was not logged.', _type, _id));
+        this.assertEquals(_status, log.Status, strFmt('%1 %2 was logged with the wrong status. Error text: %3', _type, _id, log.ErrorTxt));
+
+        if (_status == OLK_EdsLogStatus::Error)
+        {
+            this.assertTrue(log.ErrorTxt != '', strFmt('%1 %2 failed without an error text in the log.', _type, _id));
+        }
+        else
+        {
+            this.assertEquals('', log.ErrorTxt, strFmt('%1 %2 succeeded with an error text in the log.', _type, _id));
+        }
+
+        return log;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testEveryActionIsLogged</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// One execution with data, code and SQL logs every data setup line, active code job and active SQL job once, and nothing else.
+    /// </summary>
+    [SysTestMethod]
+    public void testEveryActionIsLogged()
+    {
+        RecId                           logStart;
+        OLK_EnvironmentDataSetupTrans   trans;
+        OLK_EnvironmentDataSetupLog     log;
+        str                             sqlWhere = " WHERE CUSTGROUP = '" + OLK_EnvironmentDataSetupLogTest::CustGroupId + "' AND DATAAREAID = '%DataAreaId%'";
+
+        trans = this.addDataLine(custGroup.RecId, 'Customer group name');
+        this.addCodeJob(sampleClassId, methodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, createSampleCustGroups));
+        this.addSqlJob('LOG_SQL_1', "UPDATE CUSTGROUP SET CLEARINGPERIOD = CLEARINGPERIOD" + sqlWhere);
+        this.addSqlJob('LOG_SQL_2', "UPDATE CUSTGROUP SET PAYMTERMID = PAYMTERMID" + sqlWhere);
+        this.addSqlJob('LOG_SQL_OFF', "DELETE FROM CUSTGROUP" + sqlWhere, NoYes::No);
+
+        logStart = OLK_EnvironmentDataSetupTestHelper::lastLogRecId();
+        this.execute();
+
+        log = this.assertLogged(logStart, OLK_EdsLogType::Data, int642Str(trans.RecId), OLK_EdsLogStatus::OK);
+        this.assertEquals(tableNum(CustGroup), log.RefTableId, 'The data log entry does not point at the table.');
+        this.assertEquals(fieldNum(CustGroup, Name), log.RefFieldId, 'The data log entry does not point at the field.');
+        this.assertEquals(custGroup.RecId, log.RefRecId, 'The data log entry does not point at the record.');
+        this.assertEquals(OLK_EnvironmentDataSetupLogTest::CustGroupName, log.ValueOrig, 'The data log entry does not hold the value before the change.');
+        this.assertEquals(OLK_EnvironmentDataSetupLogTest::LoggedName, log.Value, 'The data log entry does not hold the value written.');
+
+        this.assertLogged(logStart, OLK_EdsLogType::Code, OLK_EnvironmentDataSetupTestHelper::codeJobLogId(sampleClassId, methodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, createSampleCustGroups)), OLK_EdsLogStatus::OK);
+
+        log = this.assertLogged(logStart, OLK_EdsLogType::SQL, 'LOG_SQL_1', OLK_EdsLogStatus::OK);
+        this.assertEquals('1', log.Value, 'The SQL log entry does not hold the number of rows.');
+        this.assertLogged(logStart, OLK_EdsLogType::SQL, 'LOG_SQL_2', OLK_EdsLogStatus::OK);
+
+        this.assertEquals(1, OLK_EnvironmentDataSetupTestHelper::logCountSince(logStart, OLK_EnvironmentDataSetupTestHelper::LogEnvironmentId, OLK_EdsLogType::Data), 'Not exactly one data entry per data setup line.');
+        this.assertEquals(1, OLK_EnvironmentDataSetupTestHelper::logCountSince(logStart, OLK_EnvironmentDataSetupTestHelper::LogEnvironmentId, OLK_EdsLogType::Code), 'Not exactly one code entry per active code job.');
+        this.assertEquals(2, OLK_EnvironmentDataSetupTestHelper::logCountSince(logStart, OLK_EnvironmentDataSetupTestHelper::LogEnvironmentId, OLK_EdsLogType::SQL), 'Not exactly one SQL entry per active SQL job; the inactive one must not be logged.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testEveryDevAndTestActionIsLogged</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Executing DEV and TEST, with whatever lines the other tests left there, logs one entry per data setup line and per active job.
+    /// </summary>
+    [SysTestMethod]
+    public void testEveryDevAndTestActionIsLogged()
+    {
+        container environments = [OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId];
+
+        OLK_EnvironmentDataSetupTestHelper::ensureTestEnvironments();
+
+        for (int i = 1; i <= conLen(environments); i++)
+        {
+            OLK_EdsEnvironmentId            environmentId = conPeek(environments, i);
+            OLK_EnvironmentDataSetupTrans   trans;
+            OLK_EnvironmentDataSetupCode    code;
+            OLK_EnvironmentDataSetupSQL     sqlJob;
+            RecId                           logStart;
+
+            // Only the sample job runs, so the standard jobs that enable users and batch jobs stay untouched.
+            OLK_EnvironmentDataSetupTestHelper::activateOnlyCodeJob(environmentId, sampleClassId, methodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, createSampleCustGroups));
+
+            select count(RecId) from trans  where trans.EnvironmentId == environmentId;
+            select count(RecId) from code   where code.EnvironmentId == environmentId && code.Active == NoYes::Yes;
+            select count(RecId) from sqlJob where sqlJob.EnvironmentId == environmentId && sqlJob.Active == NoYes::Yes;
+
+            logStart = OLK_EnvironmentDataSetupTestHelper::lastLogRecId();
+            OLK_EnvironmentDataSetupTestHelper::execute(environmentId, NoYes::Yes, NoYes::Yes, NoYes::Yes);
+
+            OLK_EnvironmentDataSetupCode::setActiveForQuery(OLK_EnvironmentDataSetupTestHelper::codeJobQuery(environmentId), NoYes::No);
+
+            this.assertEquals(int642int(trans.RecId), OLK_EnvironmentDataSetupTestHelper::logCountSince(logStart, environmentId, OLK_EdsLogType::Data), strFmt('%1: not every data setup line was logged.', environmentId));
+            this.assertEquals(int642int(code.RecId), OLK_EnvironmentDataSetupTestHelper::logCountSince(logStart, environmentId, OLK_EdsLogType::Code), strFmt('%1: not every active code job was logged.', environmentId));
+            this.assertEquals(int642int(sqlJob.RecId), OLK_EnvironmentDataSetupTestHelper::logCountSince(logStart, environmentId, OLK_EdsLogType::SQL), strFmt('%1: not every active SQL job was logged.', environmentId));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testFailuresAreLoggedAndDoNotStopTheRest</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A data line for a missing record, a method that is not a code job, a statement that is not allowed and a statement
+    /// that fails in SQL Server are each logged as Error with the reason, and the lines after them still run.
+    /// </summary>
+    [SysTestMethod]
+    public void testFailuresAreLoggedAndDoNotStopTheRest()
+    {
+        RecId                           logStart;
+        OLK_EnvironmentDataSetupTrans   missingRecord;
+        OLK_EnvironmentDataSetupTrans   goodLine;
+        str                             sqlWhere = " WHERE CUSTGROUP = '" + OLK_EnvironmentDataSetupLogTest::CustGroupId + "' AND DATAAREAID = '%DataAreaId%'";
+
+        missingRecord = this.addDataLine(1, 'Record that does not exist');
+        goodLine      = this.addDataLine(custGroup.RecId, 'Customer group name');
+
+        this.addCodeJob(sampleClassId, methodStr(OLK_EnvironmentDataSetupExecuteCode, parmEnvironmentId));
+        this.addCodeJob(sampleClassId, methodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, createSampleCustGroups));
+
+        this.addSqlJob('LOG_NOT_ALLOWED', 'SELECT * FROM CUSTGROUP');
+        this.addSqlJob('LOG_SQL_ERROR', "UPDATE CUSTGROUP SET NO_SUCH_COLUMN = 1" + sqlWhere);
+        this.addSqlJob('LOG_SQL_OK', "UPDATE CUSTGROUP SET CLEARINGPERIOD = CLEARINGPERIOD" + sqlWhere);
+
+        logStart = OLK_EnvironmentDataSetupTestHelper::lastLogRecId();
+        this.execute();
+
+        this.assertLogged(logStart, OLK_EdsLogType::Data, int642Str(missingRecord.RecId), OLK_EdsLogStatus::Error);
+        this.assertLogged(logStart, OLK_EdsLogType::Data, int642Str(goodLine.RecId), OLK_EdsLogStatus::OK);
+
+        this.assertLogged(logStart, OLK_EdsLogType::Code, OLK_EnvironmentDataSetupTestHelper::codeJobLogId(sampleClassId, methodStr(OLK_EnvironmentDataSetupExecuteCode, parmEnvironmentId)), OLK_EdsLogStatus::Error);
+        this.assertLogged(logStart, OLK_EdsLogType::Code, OLK_EnvironmentDataSetupTestHelper::codeJobLogId(sampleClassId, methodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, createSampleCustGroups)), OLK_EdsLogStatus::OK);
+
+        this.assertLogged(logStart, OLK_EdsLogType::SQL, 'LOG_NOT_ALLOWED', OLK_EdsLogStatus::Error);
+        this.assertLogged(logStart, OLK_EdsLogType::SQL, 'LOG_SQL_ERROR', OLK_EdsLogStatus::Error);
+        this.assertLogged(logStart, OLK_EdsLogType::SQL, 'LOG_SQL_OK', OLK_EdsLogStatus::OK);
+
+        this.assertEquals(OLK_EnvironmentDataSetupLogTest::LoggedName, OLK_EnvironmentDataSetupTestHelper::findCustGroup(OLK_EnvironmentDataSetupLogTest::CustGroupId).Name, 'The good data line did not run after the failing one.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testLogFormShowsTheEntries</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The Environment data setup log form opens and lists the entries of an execution.
+    /// </summary>
+    [SysTestMethod]
+    public void testLogFormShowsTheEntries()
+    {
+        OLK_EnvironmentDataSetupTrans   trans = this.addDataLine(custGroup.RecId, 'Customer group name');
+        RecId                           logStart = OLK_EnvironmentDataSetupTestHelper::lastLogRecId();
+        FormRun                         formRun;
+        FormDataSource                  logDataSource;
+        OLK_EnvironmentDataSetupLog     shownLog;
+        boolean                         found;
+
+        this.execute();
+
+        formRun = classFactory.formRunClass(new Args(formStr(OLK_EnvironmentDataSetupLog)));
+        formRun.init();
+        formRun.run();
+
+        logDataSource = formRun.dataSource(formDataSourceStr(OLK_EnvironmentDataSetupLog, OLK_EnvironmentDataSetupLog));
+        logDataSource.queryBuildDataSource().addRange(fieldNum(OLK_EnvironmentDataSetupLog, RecId)).value(SysQuery::range(logStart + 1, ''));
+        logDataSource.executeQuery();
+
+        for (shownLog = logDataSource.getFirst(); shownLog; shownLog = logDataSource.getNext())
+        {
+            if (shownLog.Type == OLK_EdsLogType::Data && shownLog.Id == int642Str(trans.RecId))
+            {
+                found = true;
+            }
+        }
+
+        formRun.close();
+
+        this.assertTrue(found, 'The log form does not show the entry of the executed data setup line.');
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

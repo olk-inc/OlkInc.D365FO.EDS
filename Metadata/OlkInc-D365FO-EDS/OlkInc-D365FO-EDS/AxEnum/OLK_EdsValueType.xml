@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EdsValueType</Name>
+	<Label>@OLK_EDSLabel:ValueType</Label>
+	<UseEnumValue>No</UseEnumValue>
+	<EnumValues>
+		<AxEnumValue>
+			<Name>String</Name>
+			<Label>@OLK_EDSLabel:TypeString</Label>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Integer</Name>
+			<Label>@OLK_EDSLabel:TypeInteger</Label>
+			<Value>1</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Real</Name>
+			<Label>@OLK_EDSLabel:TypeReal</Label>
+			<Value>2</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Date</Name>
+			<Label>@OLK_EDSLabel:TypeDate</Label>
+			<Value>3</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Enum</Name>
+			<Label>@OLK_EDSLabel:TypeEnum</Label>
+			<Value>4</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>UtcDateTime</Name>
+			<Label>@OLK_EDSLabel:TypeUtcDateTime</Label>
+			<Value>5</Value>
+		</AxEnumValue>
+	</EnumValues>
+</AxEnum>

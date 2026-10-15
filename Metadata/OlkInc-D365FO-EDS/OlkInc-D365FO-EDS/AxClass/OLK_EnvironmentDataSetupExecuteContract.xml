@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupExecuteContract</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Parameters for executing the environment data setup.
+/// </summary>
+[DataContractAttribute]
+class OLK_EnvironmentDataSetupExecuteContract implements SysOperationValidatable
+{
+    OLK_EdsEnvironmentId    environmentId;
+    NoYesId                 executeData;
+    NoYesId                 executeCode;
+    NoYesId                 executeSql;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>parmEnvironmentId</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute,
+        SysOperationLabelAttribute(literalStr("@OLK_EDSLabel:EnvironmentId")),
+        SysOperationHelpTextAttribute(literalStr("@OLK_EDSLabel:EnvironmentIdHelp")),
+        SysOperationDisplayOrderAttribute('1')
+    ]
+    public OLK_EdsEnvironmentId parmEnvironmentId(OLK_EdsEnvironmentId _environmentId = environmentId)
+    {
+        environmentId = _environmentId;
+
+        return environmentId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmExecuteData</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute,
+        SysOperationLabelAttribute(literalStr("@OLK_EDSLabel:ExecuteData")),
+        SysOperationHelpTextAttribute(literalStr("@OLK_EDSLabel:ExecuteDataHelp")),
+        SysOperationDisplayOrderAttribute('2')
+    ]
+    public NoYesId parmExecuteData(NoYesId _executeData = executeData)
+    {
+        executeData = _executeData;
+
+        return executeData;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmExecuteCode</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute,
+        SysOperationLabelAttribute(literalStr("@OLK_EDSLabel:ExecuteCode")),
+        SysOperationHelpTextAttribute(literalStr("@OLK_EDSLabel:ExecuteCodeHelp")),
+        SysOperationDisplayOrderAttribute('3')
+    ]
+    public NoYesId parmExecuteCode(NoYesId _executeCode = executeCode)
+    {
+        executeCode = _executeCode;
+
+        return executeCode;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmExecuteSql</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute,
+        SysOperationLabelAttribute(literalStr("@OLK_EDSLabel:ExecuteSql")),
+        SysOperationHelpTextAttribute(literalStr("@OLK_EDSLabel:ExecuteSqlHelp")),
+        SysOperationDisplayOrderAttribute('4')
+    ]
+    public NoYesId parmExecuteSql(NoYesId _executeSql = executeSql)
+    {
+        executeSql = _executeSql;
+
+        return executeSql;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validate</Name>
+				<Source><![CDATA[
+    public boolean validate()
+    {
+        if (!environmentId)
+        {
+            return checkFailed("@OLK_EDSLabel:EnvironmentIdEmpty");
+        }
+
+        if (!OLK_EnvironmentDataSetupTable::exist(environmentId))
+        {
+            return checkFailed(strFmt("@OLK_EDSLabel:EnvironmentNotFound", environmentId));
+        }
+
+        return true;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

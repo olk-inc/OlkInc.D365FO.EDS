@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTableExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>BatchJob.OLK_Eds_Extension</Name>
+	<FieldGroupExtensions />
+	<FieldGroups />
+	<FieldModifications />
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>OLK_EdsBatchActive</Name>
+			<ConfigurationKey>OLK_EdsConfigKey</ConfigurationKey>
+			<ExtendedDataType>OLK_EdsBatchActive</ExtendedDataType>
+			<EnumType>NoYes</EnumType>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes />
+	<Mappings />
+	<PropertyModifications />
+	<RelationExtensions />
+</AxTableExtension>

@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupCode</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+public class OLK_EnvironmentDataSetupCode extends common
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>find</Name>
+				<Source><![CDATA[
+    public static OLK_EnvironmentDataSetupCode find(
+        OLK_EdsEnvironmentId    _environmentId,
+        OLK_EdsDataAreaId       _dataAreaId,
+        OLK_EdsClassId          _classId,
+        OLK_EdsMethodName       _methodName,
+        boolean                 _forUpdate = false)
+    {
+        OLK_EnvironmentDataSetupCode code;
+
+        code.selectForUpdate(_forUpdate);
+
+        select firstonly code
+            where code.EnvironmentId == _environmentId
+               && code.RefDataAreaId == _dataAreaId
+               && code.ClassId       == _classId
+               && code.MethodName    == _methodName;
+
+        return code;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>className</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets or sets the code job class by its name.
+    /// </summary>
+    /// <param name = "_set">true when the value is set.</param>
+    /// <param name = "_name">The class name.</param>
+    /// <returns>The name of the code job class.</returns>
+    public edit ClassName className(boolean _set, ClassName _name)
+    {
+        if (_set)
+        {
+            ClassId classId = _name ? className2Id(_name) : 0;
+
+            if (_name && !classId)
+            {
+                checkFailed(strFmt("@OLK_EDSLabel:ClassNotFound", _name));
+            }
+            else
+            {
+                this.ClassId = classId;
+            }
+        }
+
+        return this.ClassId ? classId2Name(this.ClassId) : '';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createCode</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates an inactive code job unless it already exists.
+    /// </summary>
+    /// <returns>true if the code job was created; false if it already existed.</returns>
+    public static boolean createCode(
+        OLK_EdsEnvironmentId    _environmentId,
+        OLK_EdsDataAreaId       _dataAreaId,
+        OLK_EdsClassId          _classId,
+        OLK_EdsMethodName       _methodName,
+        FreeTxt                 _description)
+    {
+        OLK_EnvironmentDataSetupCode code;
+
+        if (OLK_EnvironmentDataSetupCode::find(_environmentId, _dataAreaId, _classId, _methodName).RecId)
+        {
+            return false;
+        }
+
+        code.EnvironmentId  = _environmentId;
+        code.RefDataAreaId  = _dataAreaId;
+        code.ClassId        = _classId;
+        code.MethodName     = _methodName;
+        code.Description    = _description;
+        code.Active         = NoYes::No;
+        code.insert();
+
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>setActiveForQuery</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Activates or deactivates every code job a query selects, as the Activate all and Deactivate all buttons do.
+    /// </summary>
+    /// <param name = "_query">A query on code jobs, for example the query of the Code jobs form.</param>
+    /// <param name = "_active">Yes to activate the code jobs; No to deactivate them.</param>
+    /// <returns>The number of code jobs that were changed.</returns>
+    public static int setActiveForQuery(Query _query, OLK_EdsActive _active)
+    {
+        QueryRun                        queryRun = new QueryRun(_query);
+        OLK_EnvironmentDataSetupCode    code;
+        int                             changed;
+
+        ttsbegin;
+
+        while (queryRun.next())
+        {
+            code = queryRun.get(tableNum(OLK_EnvironmentDataSetupCode));
+
+            if (code.Active != _active)
+            {
+                code.selectForUpdate(true);
+                code.reread();
+                code.Active = _active;
+                code.update();
+                changed++;
+            }
+        }
+
+        ttscommit;
+
+        return changed;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>deleteForQuery</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Deletes every code job a query selects, as the Delete all button does.
+    /// </summary>
+    /// <param name = "_query">A query on code jobs, for example the query of the Code jobs form.</param>
+    /// <returns>The number of code jobs that were deleted.</returns>
+    public static int deleteForQuery(Query _query)
+    {
+        QueryRun                        queryRun = new QueryRun(_query);
+        OLK_EnvironmentDataSetupCode    code;
+        int                             deleted;
+
+        ttsbegin;
+
+        while (queryRun.next())
+        {
+            code = queryRun.get(tableNum(OLK_EnvironmentDataSetupCode));
+            code.selectForUpdate(true);
+            code.reread();
+
+            if (code.RecId)
+            {
+                code.delete();
+                deleted++;
+            }
+        }
+
+        ttscommit;
+
+        return deleted;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateWrite</Name>
+				<Source><![CDATA[
+    public boolean validateWrite()
+    {
+        boolean ret = super();
+
+        if (ret && !OLK_EnvironmentDataSetupExecuteCode::isCodeJobMethod(this.ClassId, this.MethodName))
+        {
+            ret = checkFailed(strFmt("@OLK_EDSLabel:NotACodeJob", this.MethodName, classId2Name(this.ClassId)));
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+	<ConfigurationKey>OLK_EdsConfigKey</ConfigurationKey>
+	<DeveloperDocumentation>@OLK_EDSLabel:CodeJobs</DeveloperDocumentation>
+	<Label>@OLK_EDSLabel:CodeJobs</Label>
+	<TitleField1>EnvironmentId</TitleField1>
+	<TitleField2>MethodName</TitleField2>
+	<CacheLookup>Found</CacheLookup>
+	<ClusteredIndex>EnvironmentIdIdx</ClusteredIndex>
+	<PrimaryIndex>EnvironmentIdIdx</PrimaryIndex>
+	<ReplacementKey>EnvironmentIdIdx</ReplacementKey>
+	<SaveDataPerCompany>No</SaveDataPerCompany>
+	<TableGroup>Main</TableGroup>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>ClassId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>MethodName</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Active</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>MethodName</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>ClassId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>MethodName</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>Overview</Name>
+			<Label>@OLK_EDSLabel:Overview</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>MethodName</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Active</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>EnvironmentId</Name>
+			<ExtendedDataType>OLK_EdsEnvironmentId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>RefDataAreaId</Name>
+			<ExtendedDataType>OLK_EdsDataAreaId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt">
+			<Name>ClassId</Name>
+			<ExtendedDataType>OLK_EdsClassId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>MethodName</Name>
+			<ExtendedDataType>OLK_EdsMethodName</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Description</Name>
+			<ExtendedDataType>FreeTxt</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>Active</Name>
+			<ExtendedDataType>OLK_EdsActive</ExtendedDataType>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>EnvironmentIdIdx</Name>
+			<AlternateKey>Yes</AlternateKey>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>ClassId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>MethodName</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<Relations>
+		<AxTableRelation>
+			<Name>OLK_EnvironmentDataSetupTable</Name>
+			<Cardinality>ZeroMore</Cardinality>
+			<OnDelete>Cascade</OnDelete>
+			<RelatedTable>OLK_EnvironmentDataSetupTable</RelatedTable>
+			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
+			<RelationshipType>Association</RelationshipType>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>EnvironmentId</Name>
+					<Field>EnvironmentId</Field>
+					<RelatedField>EnvironmentId</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+		</AxTableRelation>
+	</Relations>
+	<StateMachines />
+</AxTable>

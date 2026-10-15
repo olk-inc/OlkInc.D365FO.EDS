@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupSQL</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+public class OLK_EnvironmentDataSetupSQL extends common
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>isAllowedStatement</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks that a statement is a single UPDATE, INSERT or DELETE statement.
+    /// </summary>
+    /// <param name = "_statement">The statement.</param>
+    /// <returns>true if the statement may be executed.</returns>
+    public static boolean isAllowedStatement(str _statement)
+    {
+        str statement = strLTrim(strRTrim(_statement));
+        str firstWord;
+        int semicolon;
+        int wordEnd;
+
+        // A single trailing semicolon is accepted; anything after it would be a second statement.
+        semicolon = strScan(statement, ';', 1, strLen(statement));
+        if (semicolon && semicolon < strLen(statement))
+        {
+            return false;
+        }
+
+        wordEnd   = strFind(statement, ' \t\r\n', 1, strLen(statement));
+        firstWord = strLwr(wordEnd ? subStr(statement, 1, wordEnd - 1) : statement);
+
+        return firstWord == 'update' || firstWord == 'insert' || firstWord == 'delete';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateWrite</Name>
+				<Source><![CDATA[
+    public boolean validateWrite()
+    {
+        boolean ret = super();
+
+        if (ret && this.SQL && !OLK_EnvironmentDataSetupSQL::isAllowedStatement(this.SQL))
+        {
+            ret = checkFailed("@OLK_EDSLabel:SqlNotAllowed");
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+	<ConfigurationKey>OLK_EdsConfigKey</ConfigurationKey>
+	<DeveloperDocumentation>@OLK_EDSLabel:SqlJobs</DeveloperDocumentation>
+	<Label>@OLK_EDSLabel:SqlJobs</Label>
+	<TitleField1>EnvironmentId</TitleField1>
+	<TitleField2>Description</TitleField2>
+	<CacheLookup>Found</CacheLookup>
+	<ClusteredIndex>EnvironmentIdIdx</ClusteredIndex>
+	<PrimaryIndex>EnvironmentIdIdx</PrimaryIndex>
+	<ReplacementKey>EnvironmentIdIdx</ReplacementKey>
+	<SaveDataPerCompany>No</SaveDataPerCompany>
+	<TableGroup>Main</TableGroup>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Id</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Active</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>Id</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Id</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>Overview</Name>
+			<Label>@OLK_EDSLabel:Overview</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Id</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Active</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>EnvironmentId</Name>
+			<ExtendedDataType>OLK_EdsEnvironmentId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>RefDataAreaId</Name>
+			<ExtendedDataType>OLK_EdsDataAreaId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Id</Name>
+			<ExtendedDataType>OLK_EdsSqlId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Description</Name>
+			<ExtendedDataType>Description</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>Active</Name>
+			<ExtendedDataType>OLK_EdsActive</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>SQL</Name>
+			<ExtendedDataType>OLK_EdsSqlText</ExtendedDataType>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>EnvironmentIdIdx</Name>
+			<AlternateKey>Yes</AlternateKey>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>Id</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<Relations>
+		<AxTableRelation>
+			<Name>OLK_EnvironmentDataSetupTable</Name>
+			<Cardinality>ZeroMore</Cardinality>
+			<OnDelete>Cascade</OnDelete>
+			<RelatedTable>OLK_EnvironmentDataSetupTable</RelatedTable>
+			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
+			<RelationshipType>Association</RelationshipType>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>EnvironmentId</Name>
+					<Field>EnvironmentId</Field>
+					<RelatedField>EnvironmentId</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+		</AxTableRelation>
+	</Relations>
+	<StateMachines />
+</AxTable>

@@ -1,0 +1,527 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
+	<Name>OLK_EnvironmentDataSetupCode</Name>
+	<SourceCode>
+		<Methods xmlns="">
+			<Method>
+				<Name>classDeclaration</Name>
+				<Source><![CDATA[
+/// <summary>
+/// Code jobs: methods of code job classes that run in a company when the environment data setup is executed.
+/// </summary>
+/// <remarks>
+/// Create code jobs asks for the environment and company and adds an inactive code job for every code job method.
+/// Activate all, Deactivate all and Delete all work on the code jobs shown in the list, so filter the list first.
+/// </remarks>
+[Form]
+public class OLK_EnvironmentDataSetupCode extends FormRun
+{
+}
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>environmentId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The environment the form is opened for, or else the environment of the selected code job, or else the master environment.
+    /// </summary>
+    private OLK_EdsEnvironmentId environmentId()
+    {
+        if (element.args() && element.args().record() && element.args().record().TableId == tableNum(OLK_EnvironmentDataSetupTable))
+        {
+            OLK_EnvironmentDataSetupTable environment = element.args().record();
+            return environment.EnvironmentId;
+        }
+
+        if (OLK_EnvironmentDataSetupCode.EnvironmentId)
+        {
+            return OLK_EnvironmentDataSetupCode.EnvironmentId;
+        }
+
+        return OLK_EnvironmentDataSetupTable::findMaster().EnvironmentId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createCodeJobs</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Asks for the environment and company, then creates the missing code jobs for them.
+    /// </summary>
+    private void createCodeJobs()
+    {
+        Dialog      dialog = new Dialog("@OLK_EDSLabel:CreateCodeJobs");
+        DialogField environmentField;
+        DialogField companyField;
+        int         created;
+
+        environmentField = dialog.addFieldValue(extendedTypeStr(OLK_EdsEnvironmentId), element.environmentId());
+        companyField     = dialog.addFieldValue(extendedTypeStr(OLK_EdsDataAreaId), curExt());
+
+        if (dialog.run())
+        {
+            created = OLK_EnvironmentDataSetupExecuteCode::createCodeJobs(environmentField.value(), companyField.value() ? companyField.value() : curExt());
+            info(strFmt("@OLK_EDSLabel:CodeJobsCreated", created, environmentField.value()));
+
+            OLK_EnvironmentDataSetupCode_ds.research();
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+		<DataSources xmlns="" />
+		<DataControls xmlns="">
+			<Control>
+				<Name>CreateCodeJobs</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+        public void clicked()
+        {
+            super();
+
+            element.createCodeJobs();
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>DeleteAll</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+        public void clicked()
+        {
+            super();
+
+            if (Box::yesNo("@OLK_EDSLabel:DeleteAllConfirm", DialogButton::No) == DialogButton::Yes)
+            {
+                OLK_EnvironmentDataSetupCode::deleteForQuery(OLK_EnvironmentDataSetupCode_ds.queryRun().query());
+                OLK_EnvironmentDataSetupCode_ds.research();
+            }
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>ActivateAll</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+        public void clicked()
+        {
+            super();
+
+            OLK_EnvironmentDataSetupCode::setActiveForQuery(OLK_EnvironmentDataSetupCode_ds.queryRun().query(), NoYes::Yes);
+            OLK_EnvironmentDataSetupCode_ds.research(true);
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>DeactivateAll</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+        public void clicked()
+        {
+            super();
+
+            OLK_EnvironmentDataSetupCode::setActiveForQuery(OLK_EnvironmentDataSetupCode_ds.queryRun().query(), NoYes::No);
+            OLK_EnvironmentDataSetupCode_ds.research(true);
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+		</DataControls>
+		<Members xmlns="" />
+	</SourceCode>
+	<DataSources>
+		<AxFormDataSource xmlns="">
+			<Name>OLK_EnvironmentDataSetupCode</Name>
+			<Table>OLK_EnvironmentDataSetupCode</Table>
+			<Fields>
+				<AxFormDataSourceField>
+					<DataField>Active</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>ClassId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>Description</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>EnvironmentId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>MethodName</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>Partition</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>RecId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>RefDataAreaId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>TableId</DataField>
+				</AxFormDataSourceField>
+			</Fields>
+			<ReferencedDataSources />
+			<DataSourceLinks />
+			<DerivedDataSources />
+		</AxFormDataSource>
+	</DataSources>
+	<Design>
+		<Caption xmlns="">@OLK_EDSLabel:CodeJobs</Caption>
+		<DataSource xmlns="">OLK_EnvironmentDataSetupCode</DataSource>
+		<Pattern xmlns="">SimpleListDetails-Grid</Pattern>
+		<PatternVersion xmlns="">1.4</PatternVersion>
+		<Style xmlns="">SimpleListDetails</Style>
+		<TitleDataSource xmlns="">OLK_EnvironmentDataSetupCode</TitleDataSource>
+		<Controls xmlns="">
+			<AxFormControl xmlns=""
+				i:type="AxFormActionPaneControl">
+				<Name>ActionPane</Name>
+				<Type>ActionPane</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormButtonGroupControl">
+						<Name>ButtonGroup</Name>
+						<Type>ButtonGroup</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormButtonControl">
+								<Name>CreateCodeJobs</Name>
+								<HelpText>@OLK_EDSLabel:CreateCodeJobsHelp</HelpText>
+								<Type>Button</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Text>@OLK_EDSLabel:CreateCodeJobs</Text>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormButtonControl">
+								<Name>DeleteAll</Name>
+								<HelpText>@OLK_EDSLabel:DeleteAllHelp</HelpText>
+								<Type>Button</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Text>@OLK_EDSLabel:DeleteAll</Text>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormButtonControl">
+								<Name>ActivateAll</Name>
+								<HelpText>@OLK_EDSLabel:ActivateAllHelp</HelpText>
+								<Type>Button</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Text>@OLK_EDSLabel:ActivateAll</Text>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormButtonControl">
+								<Name>DeactivateAll</Name>
+								<HelpText>@OLK_EDSLabel:DeactivateAllHelp</HelpText>
+								<Type>Button</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Text>@OLK_EDSLabel:DeactivateAll</Text>
+							</AxFormControl>
+						</Controls>
+					</AxFormControl>
+				</Controls>
+				<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>NavigationList</Name>
+				<AutoDeclaration>Yes</AutoDeclaration>
+				<HeightMode>SizeToAvailable</HeightMode>
+				<Type>Group</Type>
+				<Width>300</Width>
+				<WidthMode>Manual</WidthMode>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl>
+						<Name>QuickFilter</Name>
+						<WidthMode>SizeToAvailable</WidthMode>
+						<FormControlExtension>
+							<Name>QuickFilterControl</Name>
+							<ExtensionComponents />
+							<ExtensionProperties>
+								<AxFormControlExtensionProperty>
+									<Name>targetControlName</Name>
+									<Type>String</Type>
+									<Value>Grid</Value>
+								</AxFormControlExtensionProperty>
+								<AxFormControlExtensionProperty>
+									<Name>defaultColumnName</Name>
+									<Type>String</Type>
+								</AxFormControlExtensionProperty>
+								<AxFormControlExtensionProperty>
+									<Name>placeholderText</Name>
+									<Type>String</Type>
+								</AxFormControlExtensionProperty>
+							</ExtensionProperties>
+						</FormControlExtension>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormGridControl">
+						<Name>Grid</Name>
+						<AllowEdit>No</AllowEdit>
+						<Type>Grid</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_EnvironmentId</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>EnvironmentId</DataField>
+								<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_RefDataAreaId</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>RefDataAreaId</DataField>
+								<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_className</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataMethod>className</DataMethod>
+								<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+								<Label>@OLK_EDSLabel:ClassName</Label>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Grid_MethodName</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>MethodName</DataField>
+								<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormCheckBoxControl">
+								<Name>Grid_Active</Name>
+								<Type>CheckBox</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>Active</DataField>
+								<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+							</AxFormControl>
+						</Controls>
+						<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+						<MultiSelect>No</MultiSelect>
+						<ShowRowLabels>No</ShowRowLabels>
+						<Style>Tabular</Style>
+					</AxFormControl>
+				</Controls>
+				<FrameType>None</FrameType>
+				<Style>SidePanel</Style>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>VerticalSplitter</Name>
+				<AutoDeclaration>Yes</AutoDeclaration>
+				<Type>Group</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls />
+				<Style>SplitterVerticalContainer</Style>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>DetailsHeader</Name>
+				<Pattern>FieldsFieldGroups</Pattern>
+				<PatternVersion>1.1</PatternVersion>
+				<Type>Group</Type>
+				<WidthMode>SizeToAvailable</WidthMode>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>Header_EnvironmentId</Name>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>EnvironmentId</DataField>
+						<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>Header_RefDataAreaId</Name>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>RefDataAreaId</DataField>
+						<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>Header_className</Name>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataMethod>className</DataMethod>
+						<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+						<Label>@OLK_EDSLabel:ClassName</Label>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>Header_MethodName</Name>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>MethodName</DataField>
+						<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormCheckBoxControl">
+						<Name>Header_Active</Name>
+						<Type>CheckBox</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>Active</DataField>
+						<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+					</AxFormControl>
+				</Controls>
+				<ColumnsMode>Fill</ColumnsMode>
+				<FrameType>None</FrameType>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormTabControl">
+				<Name>DetailsTab</Name>
+				<Type>Tab</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormTabPageControl">
+						<Name>CodeTab</Name>
+						<Pattern>FieldsFieldGroups</Pattern>
+						<PatternVersion>1.1</PatternVersion>
+						<Type>TabPage</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormGroupControl">
+								<Name>Code</Name>
+								<Type>Group</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Controls>
+									<AxFormControl xmlns=""
+										i:type="AxFormIntegerControl">
+										<Name>Code_ClassId</Name>
+										<AllowEdit>No</AllowEdit>
+										<Type>Integer</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>ClassId</DataField>
+										<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormStringControl">
+										<Name>Code_className</Name>
+										<Type>String</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataMethod>className</DataMethod>
+										<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+										<Label>@OLK_EDSLabel:ClassName</Label>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormStringControl">
+										<Name>Code_MethodName</Name>
+										<Type>String</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>MethodName</DataField>
+										<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+									</AxFormControl>
+								</Controls>
+								<Caption>@OLK_EDSLabel:Code</Caption>
+							</AxFormControl>
+						</Controls>
+						<ColumnsMode>Fill</ColumnsMode>
+						<Caption>@OLK_EDSLabel:Code</Caption>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormTabPageControl">
+						<Name>DescriptionTab</Name>
+						<Pattern>FieldsFieldGroups</Pattern>
+						<PatternVersion>1.1</PatternVersion>
+						<Type>TabPage</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormGroupControl">
+								<Name>DescriptionGroup</Name>
+								<Type>Group</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Controls>
+									<AxFormControl xmlns=""
+										i:type="AxFormStringControl">
+										<Name>DescriptionGroup_Description</Name>
+										<Type>String</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>Description</DataField>
+										<DataSource>OLK_EnvironmentDataSetupCode</DataSource>
+										<DisplayHeight>10</DisplayHeight>
+										<DisplayHeightMode>Fixed</DisplayHeightMode>
+										<MultiLine>Yes</MultiLine>
+									</AxFormControl>
+								</Controls>
+								<Caption>@OLK_EDSLabel:Description</Caption>
+							</AxFormControl>
+						</Controls>
+						<ColumnsMode>Fill</ColumnsMode>
+						<Caption>@OLK_EDSLabel:Description</Caption>
+					</AxFormControl>
+				</Controls>
+				<Style>FastTabs</Style>
+			</AxFormControl>
+		</Controls>
+	</Design>
+	<Parts />
+</AxForm>

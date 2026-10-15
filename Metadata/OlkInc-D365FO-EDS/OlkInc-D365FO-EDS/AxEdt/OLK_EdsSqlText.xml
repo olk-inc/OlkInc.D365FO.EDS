@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
+	i:type="AxEdtString">
+	<Name>OLK_EdsSqlText</Name>
+	<Extends>FreeTxt</Extends>
+	<HelpText>@OLK_EDSLabel:SqlTextHelp</HelpText>
+	<Label>@OLK_EDSLabel:SqlText</Label>
+	<ArrayElements />
+	<Relations />
+	<TableReferences />
+</AxEdt>

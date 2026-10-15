@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupExecuteCode_System</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Code jobs for users.
+/// </summary>
+class OLK_EnvironmentDataSetupExecuteCode_System extends OLK_EnvironmentDataSetupExecuteCode
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>enableUsersAll</Name>
+				<Source><![CDATA[
+    [OLK_EnvironmentDataSetupAttribute('Enable all disabled users.')]
+    public void enableUsersAll()
+    {
+        UserInfo userInfo;
+
+        ttsbegin;
+
+        while select forupdate userInfo
+            where userInfo.enable == 0
+        {
+            userInfo.enable = 1;
+            userInfo.update();
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>enableUsersList</Name>
+				<Source><![CDATA[
+    [OLK_EnvironmentDataSetupAttribute('Enable the users listed in the EnableUsersList default value.')]
+    public void enableUsersList()
+    {
+        ListEnumerator  users = OLK_EnvironmentDataSetupDefaultValues::valueList(OLK_EnvironmentDataSetupDefaultData::EnableUsersList).getEnumerator();
+        UserInfo        userInfo;
+
+        ttsbegin;
+
+        while (users.moveNext())
+        {
+            UserId userId = users.current();
+
+            select forupdate firstonly userInfo
+                where userInfo.id     == userId
+                   && userInfo.enable == 0;
+
+            if (userInfo.RecId)
+            {
+                userInfo.enable = 1;
+                userInfo.update();
+            }
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

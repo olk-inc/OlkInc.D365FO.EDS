@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxMenu xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
+	<Name>OLK_EdsEnvironmentDataSetup</Name>
+	<ConfigurationKey>OLK_EdsConfigKey</ConfigurationKey>
+	<Label>@OLK_EDSLabel:Menu</Label>
+	<Elements>
+		<AxMenuElement xmlns=""
+			i:type="AxMenuElementMenuItem">
+			<Name>OLK_EnvironmentDataSetupExecute</Name>
+			<MenuItemName>OLK_EnvironmentDataSetupExecute</MenuItemName>
+			<MenuItemType>Action</MenuItemType>
+		</AxMenuElement>
+		<AxMenuElement xmlns=""
+			i:type="AxMenuElementMenuItem">
+			<Name>OLK_EnvironmentDataSetupTable</Name>
+			<MenuItemName>OLK_EnvironmentDataSetupTable</MenuItemName>
+		</AxMenuElement>
+		<AxMenuElement xmlns=""
+			i:type="AxMenuElementMenuItem">
+			<Name>OLK_EnvironmentDataSetupTrans</Name>
+			<MenuItemName>OLK_EnvironmentDataSetupTrans</MenuItemName>
+		</AxMenuElement>
+		<AxMenuElement xmlns=""
+			i:type="AxMenuElementMenuItem">
+			<Name>OLK_EnvironmentDataSetupCode</Name>
+			<MenuItemName>OLK_EnvironmentDataSetupCode</MenuItemName>
+		</AxMenuElement>
+		<AxMenuElement xmlns=""
+			i:type="AxMenuElementMenuItem">
+			<Name>OLK_EnvironmentDataSetupSQL</Name>
+			<MenuItemName>OLK_EnvironmentDataSetupSQL</MenuItemName>
+		</AxMenuElement>
+		<AxMenuElement xmlns=""
+			i:type="AxMenuElementMenuItem">
+			<Name>OLK_EnvironmentDataSetupDefaultValues</Name>
+			<MenuItemName>OLK_EnvironmentDataSetupDefaultValues</MenuItemName>
+		</AxMenuElement>
+		<AxMenuElement xmlns=""
+			i:type="AxMenuElementMenuItem">
+			<Name>OLK_EnvironmentDataSetupLog</Name>
+			<MenuItemName>OLK_EnvironmentDataSetupLog</MenuItemName>
+		</AxMenuElement>
+	</Elements>
+</AxMenu>

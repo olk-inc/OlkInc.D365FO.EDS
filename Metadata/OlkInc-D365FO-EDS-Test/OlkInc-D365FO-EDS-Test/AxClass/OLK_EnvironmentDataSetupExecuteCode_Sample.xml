@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupExecuteCode_Sample</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// SAMPLE code jobs for the environment data setup. Copy this class into your own model to add your own code jobs.
+/// </summary>
+/// <remarks>
+/// <para><b>What a code job is</b></para>
+/// <para>
+/// A code job is a piece of X++ that runs when the environment data setup is executed for an environment, typically right after
+/// a database refresh from production. Use it for setup that cannot be expressed as a field value on a record (the Data setup form)
+/// or as a single SQL statement (the SQL jobs form): creating records, calling standard framework methods, scheduling batch jobs,
+/// enabling users and so on.
+/// </para>
+///
+/// <para><b>How to write a code job</b></para>
+/// <list type="number">
+///   <item>Create a class in your own model that extends <c>OLK_EnvironmentDataSetupExecuteCode</c> directly. Only direct
+///         subclasses are found by Create code jobs. Your model must reference the OlkInc-D365FO-EDS package.</item>
+///   <item>Add a public instance method without parameters and decorate it with
+///         <c>[OLK_EnvironmentDataSetupAttribute('What the job does')]</c>. The text becomes the description of the code job.
+///         Methods without the attribute, with parameters, or that are static are not code jobs.</item>
+///   <item>The method runs in the company of the code job; the framework switches company for you.
+///         <c>this.parmEnvironmentId()</c> returns the environment that is being executed, so one method can behave
+///         differently per environment.</item>
+///   <item>Each code job runs on its own. When it throws an error, the error and the infolog messages are written to the
+///         Environment data setup log with status Error and the other code jobs still run. Use <c>ttsbegin</c>/<c>ttscommit</c>
+///         inside the method when it writes several records that belong together.</item>
+///   <item>Make the job safe to run again: the setup is executed after every refresh, and often more than once.
+///         Check whether the record exists before you create it, as <c>createSampleCustGroups</c> does.</item>
+///   <item>Read settings from Environment default values instead of hard-coding them, as <c>createSampleCustGroups</c>
+///         does with <c>SampleCustGroupCount</c> and <c>SampleCustGroupPrefix</c>. An administrator can then change the
+///         behaviour in System administration &gt; Environment data setup &gt; Environment default values without a deployment.</item>
+///   <item>Build your model. The new method is now available to Create code jobs.</item>
+/// </list>
+///
+/// <para><b>How to use the Code jobs form</b></para>
+/// <para>
+/// Open System administration &gt; Environment data setup &gt; Code jobs, or select an environment in Environments and click Code jobs.
+/// </para>
+/// <list type="bullet">
+///   <item><b>Create code jobs</b> asks for the Environment id (proposed: the environment the form was opened for, the selected
+///         code job's environment, or the master environment) and the Company (proposed: the current company). It adds an
+///         inactive code job for every code job method that does not have one yet for that environment and company, and tells
+///         you how many it created. Running it again does not create duplicates.</item>
+///   <item><b>Activate all</b> sets Active on every code job in the list; <b>Deactivate all</b> clears it. Both work on the
+///         list as it is filtered, so filter first (for example on Environment id) to change one environment only.</item>
+///   <item><b>Delete all</b> deletes every code job in the list after you confirm. The standard Delete button deletes the
+///         selected code job only. Create code jobs adds deleted jobs again, inactive.</item>
+/// </list>
+/// <para>Fields:</para>
+/// <list type="bullet">
+///   <item><b>Environment id</b>: the environment the code job belongs to, for example DEV or TEST.</item>
+///   <item><b>Company</b>: the company the method runs in.</item>
+///   <item><b>Class id / Class name</b>: the code job class, a direct subclass of <c>OLK_EnvironmentDataSetupExecuteCode</c>.</item>
+///   <item><b>Method name</b>: the code job method that is run.</item>
+///   <item><b>Active</b>: only active code jobs run. New code jobs are inactive, so nothing runs until you choose it.</item>
+///   <item><b>Description</b>: what the job does, copied from the attribute. You can change it.</item>
+/// </list>
+///
+/// <para><b>How to run the code jobs</b></para>
+/// <para>
+/// In Environments, select the environment and click Execute environment data setup with Execute code = Yes (it can run in batch).
+/// Every active code job writes one line to the Environment data setup log: type Code, id <c>ClassName.methodName</c>,
+/// status OK, or Error with the error text.
+/// </para>
+/// </remarks>
+class OLK_EnvironmentDataSetupExecuteCode_Sample extends OLK_EnvironmentDataSetupExecuteCode
+{
+    /// <summary>Default value with the number of sample customer groups to create.</summary>
+    public const str CountDefaultValueId    = 'SampleCustGroupCount';
+    /// <summary>Default value with the prefix of the sample customer group ids.</summary>
+    public const str PrefixDefaultValueId   = 'SampleCustGroupPrefix';
+
+    public const int DefaultCount           = 5;
+    public const str DefaultPrefix          = 'EDSSMP';
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>createSampleCustGroups</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// SAMPLE: creates customer groups EDSSMP01 to EDSSMP05 in the company of the code job.
+    /// </summary>
+    /// <remarks>
+    /// The number of groups and the id prefix come from the SampleCustGroupCount and SampleCustGroupPrefix environment
+    /// default values, so they can be changed without a deployment. Groups that already exist are left as they are.
+    /// </remarks>
+    [OLK_EnvironmentDataSetupAttribute('SAMPLE: Create the customer groups set by the SampleCustGroupCount and SampleCustGroupPrefix default values (5 groups EDSSMP01-EDSSMP05).')]
+    public void createSampleCustGroups()
+    {
+        int         groupCount = OLK_EnvironmentDataSetupExecuteCode_Sample::sampleCustGroupCount();
+        str         prefix     = OLK_EnvironmentDataSetupExecuteCode_Sample::sampleCustGroupPrefix();
+        CustGroup   custGroup;
+
+        ttsbegin;
+
+        for (int i = 1; i <= groupCount; i++)
+        {
+            CustGroupId groupId = OLK_EnvironmentDataSetupExecuteCode_Sample::sampleCustGroupId(prefix, i);
+
+            if (!CustGroup::exist(groupId))
+            {
+                custGroup.clear();
+                custGroup.CustGroup = groupId;
+                custGroup.Name      = strFmt('EDS sample customer group %1 (%2)', i, this.parmEnvironmentId());
+                custGroup.insert();
+            }
+        }
+
+        ttscommit;
+
+        info(strFmt('%1 sample customer groups exist with prefix %2.', groupCount, prefix));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>refreshDataEntityList</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// SAMPLE: refreshes the data entity list, as Refresh entity list in Data management &gt; Framework parameters &gt; Entity settings does.
+    /// </summary>
+    /// <remarks>
+    /// The refresh runs in batch, like the button: this code job only schedules it, so the setup does not wait for it.
+    /// Nothing is scheduled when a refresh is already waiting or running.
+    /// </remarks>
+    [OLK_EnvironmentDataSetupAttribute('SAMPLE: Refresh the data entity list (Data management > Framework parameters > Refresh entity list) in batch.')]
+    public void refreshDataEntityList()
+    {
+        BatchHeader             batchHeader;
+        DMFEntityRefreshBatch   entityRefresh;
+
+        if (OLK_EnvironmentDataSetupExecuteCode_Sample::isEntityRefreshScheduled())
+        {
+            info('The data entity list refresh is already scheduled.');
+            return;
+        }
+
+        entityRefresh = new DMFEntityRefreshBatch();
+
+        batchHeader = BatchHeader::construct();
+        batchHeader.parmCaption("@DMF:DMFEntityRefresh");
+        batchHeader.addTask(entityRefresh);
+        batchHeader.save();
+
+        info('The data entity list refresh is scheduled in batch.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isEntityRefreshScheduled</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks whether a data entity list refresh is waiting or running in batch.
+    /// </summary>
+    public static boolean isEntityRefreshScheduled()
+    {
+        Batch batch;
+
+        select firstonly RecId from batch
+            where batch.ClassNumber == classNum(DMFEntityRefreshBatch)
+               && (batch.Status == BatchStatus::Waiting
+                || batch.Status == BatchStatus::Ready
+                || batch.Status == BatchStatus::Executing);
+
+        return batch.RecId != 0;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>sampleCustGroupId</Name>
+				<Source><![CDATA[
+    public static CustGroupId sampleCustGroupId(str _prefix, int _number)
+    {
+        return _prefix + strRFix(int2Str(_number), 2, '0');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>sampleCustGroupCount</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The number of sample customer groups, from the SampleCustGroupCount default value.
+    /// </summary>
+    public static int sampleCustGroupCount()
+    {
+        OLK_EnvironmentDataSetupDefaultValues defaultValue = OLK_EnvironmentDataSetupDefaultValues::find(OLK_EnvironmentDataSetupExecuteCode_Sample::CountDefaultValueId);
+
+        return defaultValue.RecId ? str2Int(defaultValue.Value) : OLK_EnvironmentDataSetupExecuteCode_Sample::DefaultCount;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>sampleCustGroupPrefix</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The id prefix of the sample customer groups, from the SampleCustGroupPrefix default value.
+    /// </summary>
+    public static str sampleCustGroupPrefix()
+    {
+        OLK_EnvironmentDataSetupDefaultValues defaultValue = OLK_EnvironmentDataSetupDefaultValues::find(OLK_EnvironmentDataSetupExecuteCode_Sample::PrefixDefaultValueId);
+
+        return defaultValue.Value ? defaultValue.Value : OLK_EnvironmentDataSetupExecuteCode_Sample::DefaultPrefix;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createSampleDefaultValues</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates the environment default values the sample code jobs read, when they do not exist.
+    /// </summary>
+    public static void createSampleDefaultValues()
+    {
+        ttsbegin;
+
+        OLK_EnvironmentDataSetupExecuteCode_Sample::createDefaultValue(OLK_EnvironmentDataSetupExecuteCode_Sample::CountDefaultValueId,
+            'SAMPLE: number of customer groups createSampleCustGroups creates', OLK_EdsValueType::Integer, int2Str(OLK_EnvironmentDataSetupExecuteCode_Sample::DefaultCount));
+
+        OLK_EnvironmentDataSetupExecuteCode_Sample::createDefaultValue(OLK_EnvironmentDataSetupExecuteCode_Sample::PrefixDefaultValueId,
+            'SAMPLE: id prefix of the customer groups createSampleCustGroups creates', OLK_EdsValueType::String, OLK_EnvironmentDataSetupExecuteCode_Sample::DefaultPrefix);
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createDefaultValue</Name>
+				<Source><![CDATA[
+    private static void createDefaultValue(OLK_EdsDefaultValueId _id, Description _description, OLK_EdsValueType _type, OLK_EdsValue _value)
+    {
+        OLK_EnvironmentDataSetupDefaultValues defaultValue;
+
+        if (!OLK_EnvironmentDataSetupDefaultValues::find(_id).RecId)
+        {
+            defaultValue.Id          = _id;
+            defaultValue.Description = _description;
+            defaultValue.Type        = _type;
+            defaultValue.Value       = _value;
+            defaultValue.insert();
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

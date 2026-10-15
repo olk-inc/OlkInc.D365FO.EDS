@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
+	i:type="AxEdtString">
+	<Name>OLK_EdsLogId</Name>
+	<HelpText>@OLK_EDSLabel:LogIdHelp</HelpText>
+	<Label>@OLK_EDSLabel:LogId</Label>
+	<ArrayElements />
+	<Relations />
+	<TableReferences />
+	<StringSize>81</StringSize>
+</AxEdt>

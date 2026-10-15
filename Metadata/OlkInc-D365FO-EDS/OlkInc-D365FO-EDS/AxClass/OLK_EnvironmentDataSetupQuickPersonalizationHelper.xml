@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupQuickPersonalizationHelper</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Handles the Create environment data button that the environment data setup adds to the personalization pop-up of form controls,
+/// and gives the default values of the pop-up fields.
+/// </summary>
+class OLK_EnvironmentDataSetupQuickPersonalizationHelper
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>OLK_EnvironmentDataSetupCreate_OnClicked</Name>
+				<Source><![CDATA[
+    [FormControlEventHandler(formControlStr(FormControlQuickPersonalization, OLK_EnvironmentDataSetupCreate), FormControlEventType::Clicked)]
+    public static void OLK_EnvironmentDataSetupCreate_OnClicked(FormControl sender, FormControlEventArgs e)
+    {
+        FormRun             formRun             = sender.formRun();
+        FormStringControl   environmentControl  = formRun.design().controlName(formControlStr(FormControlQuickPersonalization, OLK_EnvironmentDataSetupEnvironmentId));
+        FormStringControl   descriptionControl  = formRun.design().controlName(formControlStr(FormControlQuickPersonalization, OLK_EnvironmentDataSetupDescription));
+        FormControl         personalizedControl = formRun.args().parmObject();
+
+        OLK_EnvironmentDataSetupTrans::createFromControl(personalizedControl, environmentControl.text(), descriptionControl.text());
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>defaultEnvironmentId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The environment the personalization pop-up proposes: the master environment.
+    /// </summary>
+    /// <returns>The id of the master environment; empty if no environment is marked as master.</returns>
+    public static OLK_EdsEnvironmentId defaultEnvironmentId()
+    {
+        return OLK_EnvironmentDataSetupTable::findMaster().EnvironmentId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>defaultDescription</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The description the personalization pop-up proposes: the label of the personalized control.
+    /// </summary>
+    /// <param name = "_label">The label shown in the pop-up.</param>
+    /// <param name = "_control">The personalized control; its own label is used when the pop-up shows none.</param>
+    /// <returns>The label, cut to the length of a description.</returns>
+    public static Description defaultDescription(str _label, FormControl _control = null)
+    {
+        str     label = _label;
+        Object  controlObject = _control;
+
+        if (!label && _control && Form::formKernelObjectHasMethod(_control, identifierStr(label)))
+        {
+            label = controlObject.label();
+        }
+
+        return subStr(label, 1, new SysDictType(extendedTypeNum(Description)).stringLen());
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>BatchChangeStatus_Class_OLK_Eds_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Lets the environment data setup change a batch job status without the dialog.
+/// </summary>
+[ExtensionOf(classStr(BatchChangeStatus))]
+final class BatchChangeStatus_Class_OLK_Eds_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>olkParmChoiceString</Name>
+				<Source><![CDATA[
+    public str olkParmChoiceString(str _choiceString = choiceString)
+    {
+        choiceString = _choiceString;
+
+        return choiceString;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

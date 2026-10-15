@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupDefaultValuesTest</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Tests the Environment default values: named settings that code jobs read, so their behaviour can change without a deployment.
+/// </summary>
+/// <remarks>
+/// The sample default values SampleCustGroupCount and SampleCustGroupPrefix are left in the Environment default values form after the tests.
+/// </remarks>
+[SysTestTarget(tableStr(OLK_EnvironmentDataSetupDefaultValues), UtilElementType::Table),
+ SysTestTransaction(TestTransactionMode::None)]
+class OLK_EnvironmentDataSetupDefaultValuesTest extends SysTestCase
+{
+    public const str ListId = 'EDSTEST_LIST';
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>setUp</Name>
+				<Source><![CDATA[
+    public void setUp()
+    {
+        super();
+
+        OLK_EnvironmentDataSetupTestHelper::ensureTestEnvironments();
+        OLK_EnvironmentDataSetupExecuteCode_Sample::createSampleDefaultValues();
+        this.setValue(OLK_EnvironmentDataSetupExecuteCode_Sample::CountDefaultValueId, int2Str(OLK_EnvironmentDataSetupExecuteCode_Sample::DefaultCount));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>tearDown</Name>
+				<Source><![CDATA[
+    public void tearDown()
+    {
+        OLK_EnvironmentDataSetupDefaultValues defaultValue;
+
+        ttsbegin;
+        delete_from defaultValue where defaultValue.Id == OLK_EnvironmentDataSetupDefaultValuesTest::ListId;
+        ttscommit;
+
+        this.setValue(OLK_EnvironmentDataSetupExecuteCode_Sample::CountDefaultValueId, int2Str(OLK_EnvironmentDataSetupExecuteCode_Sample::DefaultCount));
+
+        super();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>setValue</Name>
+				<Source><![CDATA[
+    private void setValue(OLK_EdsDefaultValueId _id, OLK_EdsValue _value)
+    {
+        OLK_EnvironmentDataSetupDefaultValues defaultValue;
+
+        ttsbegin;
+
+        defaultValue = OLK_EnvironmentDataSetupDefaultValues::find(_id, true);
+        defaultValue.Id    = _id;
+        defaultValue.Value = _value;
+
+        if (defaultValue.RecId)
+        {
+            defaultValue.update();
+        }
+        else
+        {
+            defaultValue.insert();
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testStandardDefaultValuesAreCreated</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Opening the Environment default values form creates the values the standard code jobs read.
+    /// </summary>
+    [SysTestMethod]
+    public void testStandardDefaultValuesAreCreated()
+    {
+        OLK_EnvironmentDataSetupDefaultData::createDefaults();
+
+        this.assertTrue(OLK_EnvironmentDataSetupDefaultValues::find(OLK_EnvironmentDataSetupDefaultData::EnableUsersList).RecId != 0, 'EnableUsersList was not created.');
+        this.assertTrue(OLK_EnvironmentDataSetupDefaultValues::find(OLK_EnvironmentDataSetupDefaultData::EnableBatchJobsList).RecId != 0, 'EnableBatchJobsList was not created.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testSampleDefaultValuesAreCreated</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testSampleDefaultValuesAreCreated()
+    {
+        OLK_EnvironmentDataSetupDefaultValues countValue  = OLK_EnvironmentDataSetupDefaultValues::find(OLK_EnvironmentDataSetupExecuteCode_Sample::CountDefaultValueId);
+        OLK_EnvironmentDataSetupDefaultValues prefixValue = OLK_EnvironmentDataSetupDefaultValues::find(OLK_EnvironmentDataSetupExecuteCode_Sample::PrefixDefaultValueId);
+
+        this.assertEquals(OLK_EdsValueType::Integer, countValue.Type, 'SampleCustGroupCount is not an integer value.');
+        this.assertEquals('5', countValue.Value, 'SampleCustGroupCount is not 5.');
+        this.assertEquals(OLK_EdsValueType::String, prefixValue.Type, 'SampleCustGroupPrefix is not a string value.');
+        this.assertTrue(prefixValue.Value != '', 'SampleCustGroupPrefix is empty.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testValueListSplitsAndTrims</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A comma separated value, as EnableUsersList holds, is read as a list of trimmed items without empty ones.
+    /// </summary>
+    [SysTestMethod]
+    public void testValueListSplitsAndTrims()
+    {
+        List            values;
+        ListEnumerator  enumerator;
+
+        this.setValue(OLK_EnvironmentDataSetupDefaultValuesTest::ListId, ' admin , user1,,user2 ');
+
+        values = OLK_EnvironmentDataSetupDefaultValues::valueList(OLK_EnvironmentDataSetupDefaultValuesTest::ListId);
+        this.assertEquals(3, values.elements(), 'The list does not have 3 items.');
+
+        enumerator = values.getEnumerator();
+        enumerator.moveNext();
+        this.assertEquals('admin', enumerator.current(), 'The first item was not trimmed.');
+        enumerator.moveNext();
+        this.assertEquals('user1', enumerator.current(), 'The second item is wrong.');
+        enumerator.moveNext();
+        this.assertEquals('user2', enumerator.current(), 'The empty item was not skipped.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testMissingValueGivesEmptyList</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testMissingValueGivesEmptyList()
+    {
+        this.assertEquals(0, OLK_EnvironmentDataSetupDefaultValues::valueList('NO-SUCH-VALUE').elements(), 'A missing default value gave items.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testCodeJobReadsDefaultValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Changing SampleCustGroupCount changes what the createSampleCustGroups code job does, without changing code.
+    /// </summary>
+    [SysTestMethod]
+    public void testCodeJobReadsDefaultValue()
+    {
+        str prefix = OLK_EnvironmentDataSetupExecuteCode_Sample::sampleCustGroupPrefix();
+
+        for (int i = 1; i <= 9; i++)
+        {
+            OLK_EnvironmentDataSetupTestHelper::deleteCustGroup(OLK_EnvironmentDataSetupExecuteCode_Sample::sampleCustGroupId(prefix, i));
+        }
+
+        this.setValue(OLK_EnvironmentDataSetupExecuteCode_Sample::CountDefaultValueId, '3');
+
+        OLK_EnvironmentDataSetupTestHelper::activateOnlyCodeJob(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId,
+            classNum(OLK_EnvironmentDataSetupExecuteCode_Sample), methodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, createSampleCustGroups));
+
+        OLK_EnvironmentDataSetupTestHelper::execute(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, NoYes::No, NoYes::Yes, NoYes::No);
+
+        OLK_EnvironmentDataSetupCode::setActiveForQuery(OLK_EnvironmentDataSetupTestHelper::codeJobQuery(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId), NoYes::No);
+
+        this.assertTrue(OLK_EnvironmentDataSetupTestHelper::findCustGroup(OLK_EnvironmentDataSetupExecuteCode_Sample::sampleCustGroupId(prefix, 3)).RecId != 0, 'The third customer group was not created.');
+        this.assertFalse(OLK_EnvironmentDataSetupTestHelper::findCustGroup(OLK_EnvironmentDataSetupExecuteCode_Sample::sampleCustGroupId(prefix, 4)).RecId != 0, 'The code job ignored SampleCustGroupCount = 3.');
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

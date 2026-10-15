@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EdsMaintain</Name>
+	<Label>@OLK_EDSLabel:MaintainPrivilege</Label>
+	<DataEntityPermissions />
+	<DirectAccessPermissions />
+	<EntryPoints>
+		<AxSecurityEntryPointReference>
+			<Name>OLK_EnvironmentDataSetupTable</Name>
+			<Grant>
+				<Delete>Allow</Delete>
+			</Grant>
+			<ObjectName>OLK_EnvironmentDataSetupTable</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+		<AxSecurityEntryPointReference>
+			<Name>OLK_EnvironmentDataSetupTrans</Name>
+			<Grant>
+				<Delete>Allow</Delete>
+			</Grant>
+			<ObjectName>OLK_EnvironmentDataSetupTrans</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+		<AxSecurityEntryPointReference>
+			<Name>OLK_EnvironmentDataSetupCode</Name>
+			<Grant>
+				<Delete>Allow</Delete>
+			</Grant>
+			<ObjectName>OLK_EnvironmentDataSetupCode</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+		<AxSecurityEntryPointReference>
+			<Name>OLK_EnvironmentDataSetupSQL</Name>
+			<Grant>
+				<Delete>Allow</Delete>
+			</Grant>
+			<ObjectName>OLK_EnvironmentDataSetupSQL</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+		<AxSecurityEntryPointReference>
+			<Name>OLK_EnvironmentDataSetupDefaultValues</Name>
+			<Grant>
+				<Delete>Allow</Delete>
+			</Grant>
+			<ObjectName>OLK_EnvironmentDataSetupDefaultValues</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+		<AxSecurityEntryPointReference>
+			<Name>OLK_EnvironmentDataSetupLog</Name>
+			<Grant>
+				<Delete>Allow</Delete>
+			</Grant>
+			<ObjectName>OLK_EnvironmentDataSetupLog</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+		<AxSecurityEntryPointReference>
+			<Name>OLK_EnvironmentDataSetupExecute</Name>
+			<Grant>
+				<Invoke>Allow</Invoke>
+			</Grant>
+			<ObjectName>OLK_EnvironmentDataSetupExecute</ObjectName>
+			<ObjectType>MenuItemAction</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+	</EntryPoints>
+	<FormControlOverrides />
+</AxSecurityPrivilege>

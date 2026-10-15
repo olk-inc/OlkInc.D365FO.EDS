@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupDefaultData</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Creates the default values that the standard code jobs read.
+/// </summary>
+public static class OLK_EnvironmentDataSetupDefaultData
+{
+    public const str EnableUsersList     = 'EnableUsersList';
+    public const str EnableBatchJobsList = 'EnableBatchJobsList';
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>createDefaults</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates the default values that do not exist yet.
+    /// </summary>
+    public static void createDefaults()
+    {
+        ttsbegin;
+
+        OLK_EnvironmentDataSetupDefaultData::createRecord(OLK_EnvironmentDataSetupDefaultData::EnableUsersList, "@OLK_EDSLabel:DefUsersList");
+        OLK_EnvironmentDataSetupDefaultData::createRecord(OLK_EnvironmentDataSetupDefaultData::EnableBatchJobsList, "@OLK_EDSLabel:DefBatchList");
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createRecord</Name>
+				<Source><![CDATA[
+    private static void createRecord(OLK_EdsDefaultValueId _id, Description _description, OLK_EdsValueType _type = OLK_EdsValueType::String, OLK_EdsValue _value = '')
+    {
+        OLK_EnvironmentDataSetupDefaultValues defaultValue;
+
+        if (!OLK_EnvironmentDataSetupDefaultValues::find(_id).RecId)
+        {
+            defaultValue.Id          = _id;
+            defaultValue.Description = _description;
+            defaultValue.Type        = _type;
+            defaultValue.Value       = _value;
+            defaultValue.insert();
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupExecuteService</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Executes the environment data setup: writes the data setup, runs the code jobs and runs the SQL jobs of an environment.
+/// </summary>
+/// <remarks>
+/// Each line runs in its own transaction, so one failing line is logged and does not stop the others.
+/// </remarks>
+public class OLK_EnvironmentDataSetupExecuteService extends SysOperationServiceBase
+{
+    OLK_EdsEnvironmentId environmentId;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>execute</Name>
+				<Source><![CDATA[
+    public void execute(OLK_EnvironmentDataSetupExecuteContract _contract)
+    {
+        if (!_contract.validate())
+        {
+            // validate() has already reported the reason.
+            throw Exception::Error;
+        }
+
+        environmentId = _contract.parmEnvironmentId();
+
+        if (_contract.parmExecuteData())
+        {
+            this.executeData();
+        }
+
+        if (_contract.parmExecuteCode())
+        {
+            this.executeCode();
+        }
+
+        if (_contract.parmExecuteSql())
+        {
+            this.executeSql();
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>executeData</Name>
+				<Source><![CDATA[
+    protected void executeData()
+    {
+        OLK_EnvironmentDataSetupTrans trans;
+
+        while select trans
+            where trans.EnvironmentId == environmentId
+        {
+            this.executeDataLine(trans);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>executeDataLine</Name>
+				<Source><![CDATA[
+    protected void executeDataLine(OLK_EnvironmentDataSetupTrans _trans)
+    {
+        int     infologStart = infologLine();
+        str     valueOrig;
+        Common  record;
+
+        try
+        {
+            changecompany(this.company(_trans.RefDataAreaId))
+            {
+                ttsbegin;
+
+                record = _trans.findReferencedRecord(true);
+
+                if (!record.RecId)
+                {
+                    throw error(strFmt("@OLK_EDSLabel:RecordNotFound", tableId2Name(_trans.RefTableId), _trans.RefRecId));
+                }
+
+                if (_trans.EncryptedField)
+                {
+                    OLK_EnvironmentDataSetupEncryptedField::setValue(record, _trans.EncryptedMethodName, _trans.Value);
+                }
+                else
+                {
+                    DictField dictField = new DictField(_trans.RefTableId, _trans.FieldId);
+
+                    if (!dictField)
+                    {
+                        throw error("@OLK_EDSLabel:FieldRefNotFound");
+                    }
+
+                    valueOrig = OLK_EnvironmentDataSetupValueConverter::toStr(record.(_trans.FieldId), dictField);
+                    record.(_trans.FieldId) = OLK_EnvironmentDataSetupValueConverter::fromStr(_trans.Value, dictField);
+
+                    if (!record.validateField(_trans.FieldId) || !record.validateWrite())
+                    {
+                        throw error(strFmt("@OLK_EDSLabel:ValidateError", tableId2Name(_trans.RefTableId), fieldId2Name(_trans.RefTableId, _trans.FieldId)));
+                    }
+                }
+
+                record.update();
+
+                ttscommit;
+            }
+
+            this.insertLog(OLK_EdsLogType::Data, int642Str(_trans.RecId), _trans.Description, _trans.RefDataAreaId,
+                _trans.RefTableId, _trans.FieldId, _trans.RefRecId, valueOrig, this.logValue(_trans), OLK_EdsLogStatus::OK, '');
+        }
+        catch (Exception::Error)
+        {
+            this.insertLog(OLK_EdsLogType::Data, int642Str(_trans.RecId), _trans.Description, _trans.RefDataAreaId,
+                _trans.RefTableId, _trans.FieldId, _trans.RefRecId, valueOrig, this.logValue(_trans), OLK_EdsLogStatus::Error, this.infologTextSince(infologStart));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>logValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The value written to the log; values of encrypted fields are not logged.
+    /// </summary>
+    private OLK_EdsValue logValue(OLK_EnvironmentDataSetupTrans _trans)
+    {
+        return _trans.EncryptedField ? '' : _trans.Value;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>executeCode</Name>
+				<Source><![CDATA[
+    protected void executeCode()
+    {
+        OLK_EnvironmentDataSetupCode code;
+
+        while select code
+            where code.EnvironmentId == environmentId
+               && code.Active        == NoYes::Yes
+        {
+            this.executeCodeLine(code);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>executeCodeLine</Name>
+				<Source><![CDATA[
+    protected void executeCodeLine(OLK_EnvironmentDataSetupCode _code)
+    {
+        int infologStart = infologLine();
+        str id = strFmt('%1.%2', classId2Name(_code.ClassId), _code.MethodName);
+
+        try
+        {
+            changecompany(this.company(_code.RefDataAreaId))
+            {
+                OLK_EnvironmentDataSetupExecuteCode::runMethod(_code.ClassId, _code.MethodName, environmentId);
+            }
+
+            this.insertLog(OLK_EdsLogType::Code, id, _code.MethodName, _code.RefDataAreaId, 0, 0, 0, '', '', OLK_EdsLogStatus::OK, '');
+        }
+        catch (Exception::Error)
+        {
+            this.insertLog(OLK_EdsLogType::Code, id, _code.MethodName, _code.RefDataAreaId, 0, 0, 0, '', '', OLK_EdsLogStatus::Error, this.infologTextSince(infologStart));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>executeSql</Name>
+				<Source><![CDATA[
+    protected void executeSql()
+    {
+        OLK_EnvironmentDataSetupSQL sqlJob;
+
+        while select sqlJob
+            where sqlJob.EnvironmentId == environmentId
+               && sqlJob.Active        == NoYes::Yes
+        {
+            this.executeSqlLine(sqlJob);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>executeSqlLine</Name>
+				<Source><![CDATA[
+    protected void executeSqlLine(OLK_EnvironmentDataSetupSQL _sqlJob)
+    {
+        int         infologStart = infologLine();
+        str         statementText = strReplace(_sqlJob.SQL, '%DataAreaId%', strLwr(this.company(_sqlJob.RefDataAreaId)));
+        Connection  connection;
+        Statement   statement;
+        int         rows;
+
+        try
+        {
+            if (!OLK_EnvironmentDataSetupSQL::isAllowedStatement(statementText))
+            {
+                throw error("@OLK_EDSLabel:SqlNotAllowed");
+            }
+
+            connection = new Connection();
+            statement  = connection.createStatement();
+
+            new SqlStatementExecutePermission(statementText).assert();
+            rows = statement.executeUpdateWithParameters(statementText, SqlParams::create());
+            CodeAccessPermission::revertAssert();
+
+            statement.close();
+
+            this.insertLog(OLK_EdsLogType::SQL, _sqlJob.Id, _sqlJob.Description, _sqlJob.RefDataAreaId, 0, 0, 0, '', int2Str(rows), OLK_EdsLogStatus::OK, '');
+        }
+        catch
+        {
+            CodeAccessPermission::revertAssert();
+
+            this.insertLog(OLK_EdsLogType::SQL, _sqlJob.Id, _sqlJob.Description, _sqlJob.RefDataAreaId, 0, 0, 0, '', '', OLK_EdsLogStatus::Error, this.infologTextSince(infologStart));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>company</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The company a line runs in; lines without a company run in the current company.
+    /// </summary>
+    private DataAreaId company(OLK_EdsDataAreaId _dataAreaId)
+    {
+        return _dataAreaId ? _dataAreaId : curExt();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>infologTextSince</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Collects the infolog messages added after a given line.
+    /// </summary>
+    private str infologTextSince(int _fromLine)
+    {
+        str text;
+
+        for (int i = _fromLine + 1; i <= infologLine(); i++)
+        {
+            text += (text ? '\n' : '') + infolog.text(i);
+        }
+
+        return text;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>insertLog</Name>
+				<Source><![CDATA[
+    protected void insertLog(
+        OLK_EdsLogType          _type,
+        OLK_EdsLogId            _id,
+        OLK_EdsLogDescription   _description,
+        OLK_EdsDataAreaId       _dataAreaId,
+        RefTableId              _refTableId,
+        FieldId                 _refFieldId,
+        RefRecId                _refRecId,
+        OLK_EdsValue            _valueOrig,
+        OLK_EdsValue            _value,
+        OLK_EdsLogStatus        _status,
+        OLK_EdsErrorText        _errorTxt)
+    {
+        OLK_EnvironmentDataSetupLog log;
+
+        log.EnvironmentId   = environmentId;
+        log.Type            = _type;
+        log.Id              = _id;
+        log.Description     = _description;
+        log.RefDataAreaId   = _dataAreaId;
+        log.RefTableId      = _refTableId;
+        log.RefFieldId      = _refFieldId;
+        log.RefRecId        = _refRecId;
+        log.ValueOrig       = _valueOrig;
+        log.Value           = _value;
+        log.Status          = _status;
+        log.ErrorTxt        = _errorTxt;
+        log.insert();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

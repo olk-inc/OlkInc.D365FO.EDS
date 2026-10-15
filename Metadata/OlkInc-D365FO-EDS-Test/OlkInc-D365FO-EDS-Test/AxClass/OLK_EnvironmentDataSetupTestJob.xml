@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupTestJob</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Runs all environment data setup tests from the web client and shows the results in the infolog.
+/// </summary>
+/// <remarks>
+/// Open it with ?mi=SysClassRunner&cls=OLK_EnvironmentDataSetupTestJob. Each test method runs after its own setUp and before its
+/// own tearDown, so the run does not depend on the Visual Studio test runner. The tests can also be run from the Test Explorer.
+/// </remarks>
+internal final class OLK_EnvironmentDataSetupTestJob
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>testClasses</Name>
+				<Source><![CDATA[
+    private static container testClasses()
+    {
+        return [
+            classNum(OLK_EnvironmentDataSetupTest),
+            classNum(OLK_EnvironmentDataSetupSqlTest),
+            classNum(OLK_EnvironmentDataSetupCodeJobTest),
+            classNum(OLK_EnvironmentDataSetupDefaultValuesTest),
+            classNum(OLK_EnvironmentDataSetupPersonalizationTest),
+            classNum(OLK_EnvironmentDataSetupLogTest)];
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    public static void main(Args _args)
+    {
+        container   classes = OLK_EnvironmentDataSetupTestJob::testClasses();
+        int         passed;
+        int         failed;
+
+        for (int i = 1; i <= conLen(classes); i++)
+        {
+            ClassId         classId   = conPeek(classes, i);
+            SetEnumerator   tests     = OLK_EnvironmentDataSetupTestJob::testMethods(classId).getEnumerator();
+
+            while (tests.moveNext())
+            {
+                if (OLK_EnvironmentDataSetupTestJob::runTest(classId, tests.current()))
+                {
+                    passed++;
+                }
+                else
+                {
+                    failed++;
+                }
+            }
+        }
+
+        if (failed)
+        {
+            error(strFmt('Environment data setup tests: %1 passed, %2 failed.', passed, failed));
+        }
+        else
+        {
+            info(strFmt('Environment data setup tests: %1 passed, %2 failed.', passed, failed));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testMethods</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The test methods of a test class, in name order.
+    /// </summary>
+    private static Set testMethods(ClassId _classId)
+    {
+        SetEnumerator   methods   = new SysDictClass(_classId).methods(true, false, false).getEnumerator();
+        Set             testNames = new Set(Types::String);
+
+        while (methods.moveNext())
+        {
+            DictMethod dictMethod = methods.current();
+
+            if (dictMethod.getAttribute(classStr(SysTestMethodAttribute)))
+            {
+                testNames.add(dictMethod.name());
+            }
+        }
+
+        return testNames;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>runTest</Name>
+				<Source><![CDATA[
+    private static boolean runTest(ClassId _classId, MethodName _testName)
+    {
+        SysDictClass    dictClass    = new SysDictClass(_classId);
+        SysTestCase     test         = dictClass.makeObject();
+        OLK_EnvironmentDataSetupTestResult result = new OLK_EnvironmentDataSetupTestResult();
+        str             testName     = strFmt('%1.%2', classId2Name(_classId), _testName);
+        int             infologStart = infologLine();
+        str             failure;
+        System.Exception clrException;
+
+        // Assertions report their message to the test result in the global cache, as the SysTest runner sets it up.
+        classFactory.globalCache().set(classStr(SysTestExecutable), classStr(SysTestExecutable), new SysTestSuite(null, false));
+        classFactory.globalCache().set(classStr(SysTestResult), classStr(SysTestResult), result);
+
+        try
+        {
+            test.setUp();
+            dictClass.callObject(_testName, test);
+        }
+        catch (Exception::Error)
+        {
+            failure = infologLine() > infologStart ? infolog.text(infologLine()) : 'Unknown error';
+        }
+        catch (clrException)
+        {
+            // Failed assertions end the test with Exception::Break; their message is in the result.
+            failure = result.firstFailure() ? result.firstFailure() : clrException.ToString();
+        }
+
+        classFactory.globalCache().remove(classStr(SysTestExecutable), classStr(SysTestExecutable));
+        classFactory.globalCache().remove(classStr(SysTestResult), classStr(SysTestResult));
+
+        try
+        {
+            test.tearDown();
+        }
+        catch
+        {
+            if (!failure)
+            {
+                failure = infologLine() > infologStart ? infolog.text(infologLine()) : 'tearDown failed';
+            }
+        }
+
+        if (failure)
+        {
+            error(strFmt('FAILED %1: %2', testName, failure));
+            return false;
+        }
+
+        info(strFmt('Passed %1', testName));
+        return true;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

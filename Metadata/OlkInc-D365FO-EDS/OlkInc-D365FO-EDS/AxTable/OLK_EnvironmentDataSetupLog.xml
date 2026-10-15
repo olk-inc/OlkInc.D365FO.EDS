@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupLog</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+public class OLK_EnvironmentDataSetupLog extends common
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>tableName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the AOT name of the table of a data line.
+    /// </summary>
+    [SysClientCacheDataMethodAttribute(true)]
+    public display TableName tableName()
+    {
+        return this.RefTableId ? tableId2Name(this.RefTableId) : '';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>fieldName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the AOT name of the field of a data line.
+    /// </summary>
+    [SysClientCacheDataMethodAttribute(true)]
+    public display FieldName fieldName()
+    {
+        return (this.RefTableId && this.RefFieldId) ? fieldId2Name(this.RefTableId, this.RefFieldId) : '';
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+	<ConfigurationKey>OLK_EdsConfigKey</ConfigurationKey>
+	<DeveloperDocumentation>@OLK_EDSLabel:Log</DeveloperDocumentation>
+	<Label>@OLK_EDSLabel:Log</Label>
+	<TitleField1>EnvironmentId</TitleField1>
+	<TitleField2>Description</TitleField2>
+	<CacheLookup>None</CacheLookup>
+	<CreatedBy>Yes</CreatedBy>
+	<CreatedDateTime>Yes</CreatedDateTime>
+	<SaveDataPerCompany>No</SaveDataPerCompany>
+	<TableGroup>Transaction</TableGroup>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Type</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Id</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Status</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Type</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>Overview</Name>
+			<Label>@OLK_EDSLabel:Overview</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Type</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Id</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Description</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Status</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>Reference</Name>
+			<Label>@OLK_EDSLabel:Reference</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>RefDataAreaId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefTableId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefFieldId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RefRecId</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>Values</Name>
+			<Label>@OLK_EDSLabel:Values</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>ValueOrig</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Value</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>EnvironmentId</Name>
+			<ExtendedDataType>OLK_EdsEnvironmentId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>Type</Name>
+			<Label>@OLK_EDSLabel:LogType</Label>
+			<EnumType>OLK_EdsLogType</EnumType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Id</Name>
+			<ExtendedDataType>OLK_EdsLogId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Description</Name>
+			<ExtendedDataType>OLK_EdsLogDescription</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>RefDataAreaId</Name>
+			<ExtendedDataType>OLK_EdsDataAreaId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt">
+			<Name>RefTableId</Name>
+			<ExtendedDataType>OLK_EdsRefTableId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt">
+			<Name>RefFieldId</Name>
+			<ExtendedDataType>OLK_EdsFieldId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt64">
+			<Name>RefRecId</Name>
+			<ExtendedDataType>OLK_EdsRefRecId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>ValueOrig</Name>
+			<ExtendedDataType>OLK_EdsValue</ExtendedDataType>
+			<Label>@OLK_EDSLabel:ValueOrig</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Value</Name>
+			<ExtendedDataType>OLK_EdsValue</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>ErrorTxt</Name>
+			<ExtendedDataType>OLK_EdsErrorText</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>Status</Name>
+			<Label>@OLK_EDSLabel:LogStatus</Label>
+			<EnumType>OLK_EdsLogStatus</EnumType>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>EnvironmentIdx</Name>
+			<AllowDuplicates>Yes</AllowDuplicates>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>EnvironmentId</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>Type</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<Relations>
+		<AxTableRelation>
+			<Name>OLK_EnvironmentDataSetupTable</Name>
+			<Cardinality>ZeroMore</Cardinality>
+			<OnDelete>Cascade</OnDelete>
+			<RelatedTable>OLK_EnvironmentDataSetupTable</RelatedTable>
+			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
+			<RelationshipType>Association</RelationshipType>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>EnvironmentId</Name>
+					<Field>EnvironmentId</Field>
+					<RelatedField>EnvironmentId</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+		</AxTableRelation>
+	</Relations>
+	<StateMachines />
+</AxTable>

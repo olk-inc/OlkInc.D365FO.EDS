@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
+	i:type="AxEdtEnum">
+	<Name>OLK_EdsMasterEnvironment</Name>
+	<Extends>NoYesId</Extends>
+	<HelpText>@OLK_EDSLabel:MasterEnvironmentHelp</HelpText>
+	<Label>@OLK_EDSLabel:MasterEnvironment</Label>
+	<ArrayElements />
+	<Relations />
+	<TableReferences />
+	<EnumType>NoYes</EnumType>
+</AxEdt>

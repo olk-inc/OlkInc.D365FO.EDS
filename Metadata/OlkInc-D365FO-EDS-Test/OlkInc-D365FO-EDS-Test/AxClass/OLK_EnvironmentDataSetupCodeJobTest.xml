@@ -1,0 +1,457 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupCodeJobTest</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Tests the code jobs of the environment data setup: the Create code jobs, Activate all, Deactivate all and Delete all buttons
+/// of the Code jobs form, and running the sample code jobs in OLK_EnvironmentDataSetupExecuteCode_Sample for DEV and TEST.
+/// </summary>
+/// <remarks>
+/// Every test starts with all code jobs of DEV and TEST inactive, so the standard code jobs that enable users and batch jobs never run.
+/// </remarks>
+[SysTestTarget(classStr(OLK_EnvironmentDataSetupExecuteCode), UtilElementType::Class),
+ SysTestTransaction(TestTransactionMode::None)]
+class OLK_EnvironmentDataSetupCodeJobTest extends SysTestCase
+{
+    ClassId sampleClassId;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>setUp</Name>
+				<Source><![CDATA[
+    public void setUp()
+    {
+        super();
+
+        sampleClassId = classNum(OLK_EnvironmentDataSetupExecuteCode_Sample);
+
+        OLK_EnvironmentDataSetupTestHelper::ensureTestEnvironments();
+        OLK_EnvironmentDataSetupExecuteCode_Sample::createSampleDefaultValues();
+        this.setSampleCount(OLK_EnvironmentDataSetupExecuteCode_Sample::DefaultCount);
+
+        OLK_EnvironmentDataSetupExecuteCode::createCodeJobs(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, curExt());
+        OLK_EnvironmentDataSetupExecuteCode::createCodeJobs(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId, curExt());
+
+        OLK_EnvironmentDataSetupCode::setActiveForQuery(OLK_EnvironmentDataSetupTestHelper::codeJobQuery(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId), NoYes::No);
+        OLK_EnvironmentDataSetupCode::setActiveForQuery(OLK_EnvironmentDataSetupTestHelper::codeJobQuery(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId), NoYes::No);
+
+        this.deleteSampleCustGroups();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>tearDown</Name>
+				<Source><![CDATA[
+    public void tearDown()
+    {
+        OLK_EnvironmentDataSetupCode::setActiveForQuery(OLK_EnvironmentDataSetupTestHelper::codeJobQuery(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId), NoYes::No);
+        OLK_EnvironmentDataSetupCode::setActiveForQuery(OLK_EnvironmentDataSetupTestHelper::codeJobQuery(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId), NoYes::No);
+
+        super();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>setSampleCount</Name>
+				<Source><![CDATA[
+    private void setSampleCount(int _count)
+    {
+        OLK_EnvironmentDataSetupDefaultValues defaultValue;
+
+        ttsbegin;
+
+        defaultValue = OLK_EnvironmentDataSetupDefaultValues::find(OLK_EnvironmentDataSetupExecuteCode_Sample::CountDefaultValueId, true);
+        defaultValue.Value = int2Str(_count);
+        defaultValue.update();
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>deleteSampleCustGroups</Name>
+				<Source><![CDATA[
+    private void deleteSampleCustGroups()
+    {
+        for (int i = 1; i <= 9; i++)
+        {
+            OLK_EnvironmentDataSetupTestHelper::deleteCustGroup(this.sampleCustGroupId(i));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>sampleCustGroupId</Name>
+				<Source><![CDATA[
+    private CustGroupId sampleCustGroupId(int _number)
+    {
+        return OLK_EnvironmentDataSetupExecuteCode_Sample::sampleCustGroupId(OLK_EnvironmentDataSetupExecuteCode_Sample::sampleCustGroupPrefix(), _number);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>sampleJob</Name>
+				<Source><![CDATA[
+    private OLK_EnvironmentDataSetupCode sampleJob(OLK_EdsEnvironmentId _environmentId, OLK_EdsMethodName _methodName)
+    {
+        return OLK_EnvironmentDataSetupCode::find(_environmentId, curExt(), sampleClassId, _methodName);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>sampleJobCount</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Counts the sample code jobs of an environment, optionally only the active ones.
+    /// </summary>
+    private int sampleJobCount(OLK_EdsEnvironmentId _environmentId, boolean _activeOnly = false)
+    {
+        OLK_EnvironmentDataSetupCode code;
+
+        if (_activeOnly)
+        {
+            select count(RecId) from code
+                where code.EnvironmentId == _environmentId
+                   && code.ClassId       == sampleClassId
+                   && code.Active        == NoYes::Yes;
+        }
+        else
+        {
+            select count(RecId) from code
+                where code.EnvironmentId == _environmentId
+                   && code.ClassId       == sampleClassId;
+        }
+
+        return int642int(code.RecId);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>runSampleJob</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Runs one sample code job as the only active code job of an environment and checks that it is logged as OK.
+    /// </summary>
+    private void runSampleJob(OLK_EdsEnvironmentId _environmentId, OLK_EdsMethodName _methodName)
+    {
+        RecId                       logStart = OLK_EnvironmentDataSetupTestHelper::lastLogRecId();
+        OLK_EnvironmentDataSetupLog log;
+
+        OLK_EnvironmentDataSetupTestHelper::activateOnlyCodeJob(_environmentId, sampleClassId, _methodName);
+        OLK_EnvironmentDataSetupTestHelper::execute(_environmentId, NoYes::No, NoYes::Yes, NoYes::No);
+
+        log = OLK_EnvironmentDataSetupTestHelper::findLogSince(logStart, _environmentId, OLK_EdsLogType::Code,
+            OLK_EnvironmentDataSetupTestHelper::codeJobLogId(sampleClassId, _methodName));
+
+        this.assertTrue(log.RecId != 0, strFmt('Code job %1 of %2 was not logged.', _methodName, _environmentId));
+        this.assertEquals(OLK_EdsLogStatus::OK, log.Status, strFmt('Code job %1 of %2 failed: %3', _methodName, _environmentId, log.ErrorTxt));
+        this.assertEquals(1, OLK_EnvironmentDataSetupTestHelper::logCountSince(logStart, _environmentId, OLK_EdsLogType::Code), 'Other code jobs than the active one ran.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testCreateCodeJobsCreatesInactiveJobs</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Create code jobs adds an inactive code job, with the description of its attribute, for every sample method.
+    /// </summary>
+    [SysTestMethod]
+    public void testCreateCodeJobsCreatesInactiveJobs()
+    {
+        OLK_EnvironmentDataSetupCode    code;
+        int                             created;
+
+        OLK_EnvironmentDataSetupCode::deleteForQuery(OLK_EnvironmentDataSetupTestHelper::codeJobQuery(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, sampleClassId));
+
+        created = OLK_EnvironmentDataSetupExecuteCode::createCodeJobs(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, curExt());
+
+        this.assertEquals(2, created, 'Create code jobs did not create exactly the two missing sample code jobs.');
+
+        code = this.sampleJob(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, methodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, createSampleCustGroups));
+        this.assertTrue(code.RecId != 0, 'The createSampleCustGroups code job was not created.');
+        this.assertEquals(NoYes::No, code.Active, 'A new code job is active.');
+        this.assertEquals(curExt(), code.RefDataAreaId, 'The code job is not for the selected company.');
+        this.assertTrue(strScan(code.Description, 'SAMPLE', 1, strLen(code.Description)) == 1, 'The description was not taken from the attribute.');
+
+        code = this.sampleJob(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, methodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, refreshDataEntityList));
+        this.assertTrue(code.RecId != 0, 'The refreshDataEntityList code job was not created.');
+
+        this.assertFalse(this.sampleJob(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, staticMethodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, createSampleDefaultValues)).RecId != 0,
+            'A static method was created as a code job.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testCreateCodeJobsDoesNotDuplicate</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testCreateCodeJobsDoesNotDuplicate()
+    {
+        int countBefore = this.sampleJobCount(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId);
+
+        this.assertEquals(0, OLK_EnvironmentDataSetupExecuteCode::createCodeJobs(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, curExt()), 'Create code jobs created code jobs that already existed.');
+        this.assertEquals(countBefore, this.sampleJobCount(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId), 'The number of code jobs changed.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testCreateCodeJobsRequiresEnvironment</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Create code jobs refuses an empty or unknown environment; the Code jobs form asks for it in a dialog.
+    /// </summary>
+    [SysTestMethod]
+    public void testCreateCodeJobsRequiresEnvironment()
+    {
+        boolean failed;
+
+        try
+        {
+            OLK_EnvironmentDataSetupExecuteCode::createCodeJobs('', curExt());
+        }
+        catch (Exception::Error)
+        {
+            failed = true;
+        }
+
+        this.assertTrue(failed, 'Code jobs were created without an environment.');
+
+        failed = false;
+
+        try
+        {
+            OLK_EnvironmentDataSetupExecuteCode::createCodeJobs('NO-SUCH-ENV', curExt());
+        }
+        catch (Exception::Error)
+        {
+            failed = true;
+        }
+
+        this.assertTrue(failed, 'Code jobs were created for an environment that does not exist.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testActivateAll</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Activate all activates the code jobs in the filtered list and nothing else.
+    /// </summary>
+    [SysTestMethod]
+    public void testActivateAll()
+    {
+        int total   = this.sampleJobCount(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId);
+        int changed = OLK_EnvironmentDataSetupCode::setActiveForQuery(OLK_EnvironmentDataSetupTestHelper::codeJobQuery(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, sampleClassId), NoYes::Yes);
+
+        this.assertEquals(total, changed, 'Activate all did not report every code job in the list.');
+        this.assertEquals(total, this.sampleJobCount(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, true), 'Not every code job in the list is active.');
+        this.assertEquals(0, this.sampleJobCount(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId, true), 'Code jobs outside the list were activated.');
+        this.assertEquals(NoYes::No, OLK_EnvironmentDataSetupCode::find(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, curExt(),
+            classNum(OLK_EnvironmentDataSetupExecuteCode_System), methodStr(OLK_EnvironmentDataSetupExecuteCode_System, enableUsersAll)).Active,
+            'A code job of another class was activated.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testDeactivateAll</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testDeactivateAll()
+    {
+        int total = this.sampleJobCount(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId);
+
+        OLK_EnvironmentDataSetupCode::setActiveForQuery(OLK_EnvironmentDataSetupTestHelper::codeJobQuery(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, sampleClassId), NoYes::Yes);
+
+        this.assertEquals(total,
+            OLK_EnvironmentDataSetupCode::setActiveForQuery(OLK_EnvironmentDataSetupTestHelper::codeJobQuery(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, sampleClassId), NoYes::No),
+            'Deactivate all did not report every code job in the list.');
+        this.assertEquals(0, this.sampleJobCount(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, true), 'A code job is still active.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testDeleteAll</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Delete all deletes the code jobs in the filtered list; Create code jobs adds them again.
+    /// </summary>
+    [SysTestMethod]
+    public void testDeleteAll()
+    {
+        int total       = this.sampleJobCount(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId);
+        int testCount   = this.sampleJobCount(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId);
+
+        this.assertEquals(total,
+            OLK_EnvironmentDataSetupCode::deleteForQuery(OLK_EnvironmentDataSetupTestHelper::codeJobQuery(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, sampleClassId)),
+            'Delete all did not report every code job in the list.');
+        this.assertEquals(0, this.sampleJobCount(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId), 'A code job in the list was not deleted.');
+        this.assertEquals(testCount, this.sampleJobCount(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId), 'Code jobs outside the list were deleted.');
+
+        this.assertEquals(total, OLK_EnvironmentDataSetupExecuteCode::createCodeJobs(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, curExt()), 'Create code jobs did not add the deleted code jobs again.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testDeleteOne</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The standard Delete button deletes only the selected code job.
+    /// </summary>
+    [SysTestMethod]
+    public void testDeleteOne()
+    {
+        int                             total = this.sampleJobCount(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId);
+        OLK_EnvironmentDataSetupCode    code;
+
+        ttsbegin;
+        code = OLK_EnvironmentDataSetupCode::find(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, curExt(), sampleClassId, methodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, refreshDataEntityList), true);
+        this.assertTrue(code.validateDelete(), 'The code job cannot be deleted.');
+        code.delete();
+        ttscommit;
+
+        this.assertEquals(total - 1, this.sampleJobCount(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId), 'Delete did not delete exactly one code job.');
+
+        OLK_EnvironmentDataSetupExecuteCode::createCodeJobs(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, curExt());
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testOnlyCodeJobMethodsAreAccepted</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A code job entered by hand must point at a method with the code job attribute.
+    /// </summary>
+    [SysTestMethod]
+    public void testOnlyCodeJobMethodsAreAccepted()
+    {
+        OLK_EnvironmentDataSetupCode code;
+
+        code.EnvironmentId = OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId;
+        code.RefDataAreaId = curExt();
+        code.className(true, classStr(OLK_EnvironmentDataSetupExecuteCode_Sample));
+
+        code.MethodName = methodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, createSampleCustGroups);
+        this.assertTrue(code.validateWrite(), 'A code job method was rejected.');
+
+        code.MethodName = methodStr(OLK_EnvironmentDataSetupExecuteCode, parmEnvironmentId);
+        this.assertFalse(code.validateWrite(), 'A method without the code job attribute was accepted.');
+
+        code.className(true, classStr(OLK_EnvironmentDataSetupTestHelper));
+        code.MethodName = staticMethodStr(OLK_EnvironmentDataSetupTestHelper, ensureTestEnvironments);
+        this.assertFalse(code.validateWrite(), 'A method of a class that is not a code job class was accepted.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testSampleCreatesFiveCustGroupsInDev</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testSampleCreatesFiveCustGroupsInDev()
+    {
+        this.runSampleJob(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, methodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, createSampleCustGroups));
+
+        for (int i = 1; i <= 5; i++)
+        {
+            CustGroup custGroup = OLK_EnvironmentDataSetupTestHelper::findCustGroup(this.sampleCustGroupId(i));
+
+            this.assertTrue(custGroup.RecId != 0, strFmt('Customer group %1 was not created.', this.sampleCustGroupId(i)));
+            this.assertEquals(strFmt('EDS sample customer group %1 (%2)', i, OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId), custGroup.Name, 'The customer group was not named for DEV.');
+        }
+
+        this.assertFalse(OLK_EnvironmentDataSetupTestHelper::findCustGroup(this.sampleCustGroupId(6)).RecId != 0, 'More than 5 customer groups were created.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testSampleCreatesCustGroupsInTestAndIsRepeatable</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The sample runs for TEST too, and running it again leaves the existing groups as they are.
+    /// </summary>
+    [SysTestMethod]
+    public void testSampleCreatesCustGroupsInTestAndIsRepeatable()
+    {
+        this.runSampleJob(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId, methodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, createSampleCustGroups));
+        this.runSampleJob(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId, methodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, createSampleCustGroups));
+
+        for (int i = 1; i <= 5; i++)
+        {
+            this.assertEquals(strFmt('EDS sample customer group %1 (%2)', i, OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId),
+                OLK_EnvironmentDataSetupTestHelper::findCustGroup(this.sampleCustGroupId(i)).Name, 'The TEST customer group is missing.');
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testInactiveCodeJobIsNotExecuted</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testInactiveCodeJobIsNotExecuted()
+    {
+        RecId logStart = OLK_EnvironmentDataSetupTestHelper::lastLogRecId();
+
+        OLK_EnvironmentDataSetupTestHelper::execute(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, NoYes::No, NoYes::Yes, NoYes::No);
+
+        this.assertFalse(OLK_EnvironmentDataSetupTestHelper::findCustGroup(this.sampleCustGroupId(1)).RecId != 0, 'An inactive code job ran.');
+        this.assertEquals(0, OLK_EnvironmentDataSetupTestHelper::logCountSince(logStart, OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, OLK_EdsLogType::Code), 'An inactive code job was logged.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testCodeNotRunWhenNotSelected</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Active code jobs do not run when the setup is executed with Execute code = No.
+    /// </summary>
+    [SysTestMethod]
+    public void testCodeNotRunWhenNotSelected()
+    {
+        OLK_EnvironmentDataSetupTestHelper::activateOnlyCodeJob(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, sampleClassId, methodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, createSampleCustGroups));
+
+        OLK_EnvironmentDataSetupTestHelper::execute(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, NoYes::No, NoYes::No, NoYes::No);
+
+        this.assertFalse(OLK_EnvironmentDataSetupTestHelper::findCustGroup(this.sampleCustGroupId(1)).RecId != 0, 'The code job ran although Execute code was No.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testSampleRefreshesDataEntityList</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The refresh sample schedules the data entity list refresh in batch, as the Refresh entity list button does.
+    /// </summary>
+    [SysTestMethod]
+    public void testSampleRefreshesDataEntityList()
+    {
+        this.runSampleJob(OLK_EnvironmentDataSetupTestHelper::DevEnvironmentId, methodStr(OLK_EnvironmentDataSetupExecuteCode_Sample, refreshDataEntityList));
+
+        this.assertTrue(OLK_EnvironmentDataSetupExecuteCode_Sample::isEntityRefreshScheduled(), 'No data entity list refresh is waiting or running in batch.');
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

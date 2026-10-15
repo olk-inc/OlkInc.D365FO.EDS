@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
+	i:type="AxEdtString">
+	<Name>OLK_EdsDataAreaId</Name>
+	<Extends>SelectableDataArea</Extends>
+	<HelpText>@OLK_EDSLabel:CompanyHelp</HelpText>
+	<Label>@OLK_EDSLabel:Company</Label>
+	<ArrayElements />
+	<Relations />
+	<TableReferences />
+</AxEdt>
