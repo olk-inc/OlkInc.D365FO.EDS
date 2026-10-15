@@ -152,6 +152,9 @@ class OLK_EnvironmentDataSetupTest extends SysTestCase
 			<Method>
 				<Name>lastLog</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// The newest log entry for the customer group name; other fields of the group may have data setup lines too.
+    /// </summary>
     private OLK_EnvironmentDataSetupLog lastLog(OLK_EdsEnvironmentId _environmentId)
     {
         OLK_EnvironmentDataSetupLog log;
@@ -161,7 +164,8 @@ class OLK_EnvironmentDataSetupTest extends SysTestCase
             where log.EnvironmentId == _environmentId
                && log.Type          == OLK_EdsLogType::Data
                && log.RefTableId    == tableNum(CustGroup)
-               && log.RefRecId      == custGroup.RecId;
+               && log.RefRecId      == custGroup.RecId
+               && log.RefFieldId    == fieldNum(CustGroup, Name);
 
         return log;
     }

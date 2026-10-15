@@ -103,23 +103,33 @@ internal final class OLK_EnvironmentDataSetupTestJob
     {
         SysDictClass    dictClass    = new SysDictClass(_classId);
         SysTestCase     test         = dictClass.makeObject();
+        OLK_EnvironmentDataSetupTestResult result = new OLK_EnvironmentDataSetupTestResult();
         str             testName     = strFmt('%1.%2', classId2Name(_classId), _testName);
         int             infologStart = infologLine();
         str             failure;
+        System.Exception clrException;
+
+        // Assertions report their message to the test result in the global cache, as the SysTest runner sets it up.
+        classFactory.globalCache().set(classStr(SysTestExecutable), classStr(SysTestExecutable), new SysTestSuite(null, false));
+        classFactory.globalCache().set(classStr(SysTestResult), classStr(SysTestResult), result);
 
         try
         {
             test.setUp();
             dictClass.callObject(_testName, test);
         }
-        catch (Exception::CLRError)
-        {
-            failure = CLRInterop::getLastException().ToString();
-        }
-        catch
+        catch (Exception::Error)
         {
             failure = infologLine() > infologStart ? infolog.text(infologLine()) : 'Unknown error';
         }
+        catch (clrException)
+        {
+            // Failed assertions end the test with Exception::Break; their message is in the result.
+            failure = result.firstFailure() ? result.firstFailure() : clrException.ToString();
+        }
+
+        classFactory.globalCache().remove(classStr(SysTestExecutable), classStr(SysTestExecutable));
+        classFactory.globalCache().remove(classStr(SysTestResult), classStr(SysTestResult));
 
         try
         {

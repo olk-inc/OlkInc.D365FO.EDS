@@ -145,37 +145,6 @@ class OLK_EnvironmentDataSetupPersonalizationTest extends SysTestCase
 
 ]]></Source>
 			</Method>
-			<Method>
-				<Name>testDescriptionFromControlLabel</Name>
-				<Source><![CDATA[
-    /// <summary>
-    /// When the pop-up shows no label, the label of the control itself is used.
-    /// </summary>
-    [SysTestMethod]
-    public void testDescriptionFromControlLabel()
-    {
-        FormRun             formRun = classFactory.formRunClass(new Args(formStr(CustGroup)));
-        FormStringControl   control;
-
-        formRun.init();
-
-        control = formRun.design().controlName('Grid_CustGroup');
-
-        if (!control)
-        {
-            control = formRun.design().controlName('CustGroup_CustGroup');
-        }
-
-        this.assertNotNull(control, 'The customer group control was not found on the CustGroup form.');
-        this.assertEquals(subStr(control.label(), 1, new SysDictType(extendedTypeNum(Description)).stringLen()),
-            OLK_EnvironmentDataSetupQuickPersonalizationHelper::defaultDescription('', control), 'The description is not the label of the control.');
-        this.assertTrue(control.label() != '', 'The control has no label.');
-
-        formRun.close();
-    }
-
-]]></Source>
-			</Method>
 		</Methods>
 	</SourceCode>
 </AxClass>

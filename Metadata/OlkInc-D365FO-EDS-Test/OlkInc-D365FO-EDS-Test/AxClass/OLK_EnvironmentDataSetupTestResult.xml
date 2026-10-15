@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupTestResult</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Collects the message of the first failed assertion when <c>OLK_EnvironmentDataSetupTestJob</c> runs a test outside the SysTest runner.
+/// </summary>
+internal final class OLK_EnvironmentDataSetupTestResult extends SysTestResult
+{
+    str firstFailure;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>addFailure</Name>
+				<Source><![CDATA[
+    public void addFailure(SysTestExecutable _test, str _message)
+    {
+        int callStack = strScan(_message, '  Call stack:', 1, strLen(_message));
+
+        if (!firstFailure)
+        {
+            firstFailure = callStack ? subStr(_message, 1, callStack - 1) : _message;
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addInformation</Name>
+				<Source><![CDATA[
+    public void addInformation(SysTestExecutable _test, str _message)
+    {
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>firstFailure</Name>
+				<Source><![CDATA[
+    public str firstFailure()
+    {
+        return firstFailure;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>
