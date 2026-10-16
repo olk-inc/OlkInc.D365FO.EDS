@@ -6,6 +6,15 @@
 
 Every [execution](execute.md) writes one log line per data setup line, per active code job and per active SQL job it ran. The form is read only and shows the newest entries first. Open it from [Environments](environments.md) to see one environment's log.
 
+The red numbers in each screenshot match the numbered steps below it.
+
+![Environment data setup log](images/log.png)
+
+1. Select a log entry. The newest entries are at the top.
+2. **Log type** says whether it was a data line, a code job or a SQL job.
+3. **Status** is OK or Error.
+4. For an error, the **Error** FastTab shows the reason, for example *Record 1 in table CustGroup was not found.*
+
 ## Fields
 
 | Field | Data line | Code job | SQL job |

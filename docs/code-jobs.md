@@ -6,6 +6,28 @@
 
 A code job is an X++ method that runs when the setup is [executed](execute.md) with **Execute code**. Use code jobs for setup that is not a single field value ([Data setup](data-setup.md)) or a single SQL statement ([SQL jobs](sql-jobs.md)): enabling users, releasing batch jobs, creating records, calling framework methods. To write your own, see [Writing a code job](writing-code-jobs.md).
 
+The red numbers in each screenshot match the numbered steps below it.
+
+![Code jobs form](images/code-jobs-1-form.png)
+
+1. Click **Create code jobs**.
+
+![Create code jobs dialog](images/code-jobs-2-dialog.png)
+
+2. **Environment id** has the focus. Type or choose the environment, for example `DEV`.
+3. Press **Tab** to reach **Company** and type the company the jobs run in.
+4. Click **OK**. An inactive code job is added for every code job method that has none yet.
+
+![Activating code jobs](images/code-jobs-3-activate.png)
+
+5. Select a code job in the list.
+6. Set **Active** to Yes on each job that should run in this environment.
+7. **Delete all** deletes every code job in the list after you confirm.
+8. **Activate all** sets **Active** on every code job in the list.
+9. **Deactivate all** clears **Active** on every code job in the list.
+
+Filter the list first (for example on Environment id) so steps 7 to 9 change only what you mean to.
+
 ## Fields
 
 | Field | Description |

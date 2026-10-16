@@ -6,6 +6,18 @@
 
 Run this in the target environment after its database was refreshed, for example in UAT after a copy from PROD.
 
+The red numbers in each screenshot match the numbered steps below it.
+
+![Execute environment data setup dialog](images/execute.png)
+
+1. In [Environments](environments.md), select the environment and click **Execute environment data setup**.
+2. **Environment id** is filled in from the selected environment.
+3. **Execute data**: Yes to write the data setup lines.
+4. **Execute code**: Yes to run the active code jobs.
+5. **Execute SQL**: Yes to run the active SQL jobs.
+6. **Batch processing**: optionally run it in batch.
+7. Click **OK**.
+
 ## The dialog
 
 | Parameter | Description |

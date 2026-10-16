@@ -15,7 +15,7 @@ Environment data setup for Dynamics 365 Finance and Operations. After a database
 
 ## Documentation
 
-All forms are under **System administration > Setup > Environment data setup**.
+All forms are under **System administration > Setup > Environment data setup**. The pages for the forms and the Personalize pop-up have annotated screenshots with numbered steps.
 
 | Form or mechanism | Document |
 | --- | --- |

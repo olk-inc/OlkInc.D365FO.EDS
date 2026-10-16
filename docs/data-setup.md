@@ -6,6 +6,17 @@
 
 A data setup line says: in environment *E*, write value *V* to field *F* of the record with RecId *R* in table *T* of company *C*. When the setup is [executed](execute.md) with **Execute data**, every line of the environment is written.
 
+The red numbers in each screenshot match the numbered steps below it.
+
+![Data setup form](images/data-setup.png)
+
+1. Click **Edit** (or **New** for a new line).
+2. **Table name**: enter or look up the table, for example `CustGroup`.
+3. **Field name**: press **Alt+Down** or click the arrow to open the lookup.
+4. The lookup lists the table's fields with their labels. Pick one with the arrow keys and **Enter**, or click it.
+5. **Field value**: enter the value to write in the environment.
+6. **Set enum value** picks the value from the enum's values. It is enabled only for enum fields, so it is unavailable here for the string field `Name`.
+
 ## Fields
 
 | Field | Description |
