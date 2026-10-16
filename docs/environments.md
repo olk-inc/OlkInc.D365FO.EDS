@@ -6,6 +6,18 @@
 
 An environment is one Dynamics 365 Finance and Operations environment that the setup can be executed for, for example `PROD`, `UAT`, `TEST` or `DEV`. Every data setup line, code job and SQL job belongs to one environment.
 
+The red numbers in each screenshot match the numbered steps below it.
+
+![Environments form](images/environments.png)
+
+1. **New** adds an environment: enter **Environment id** and **Description**.
+2. **Data setup** opens the data setup lines of the selected environment.
+3. **Code jobs** opens its code jobs.
+4. **SQL jobs** opens its SQL jobs.
+5. **Environment data setup log** opens the execution log.
+6. **Execute environment data setup** runs the setup for the selected environment.
+7. **Master environment** marks the master. Only one environment can be the master.
+
 ## Fields
 
 | Field | Description |

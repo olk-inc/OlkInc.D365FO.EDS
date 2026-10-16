@@ -8,6 +8,15 @@ Default values are named settings that [code jobs](code-jobs.md) read. A code jo
 
 The values are not tied to an environment record. Each environment has its own database, so the values in UAT are the values UAT's code jobs read; change them there after a refresh, or set them with a [data setup](data-setup.md) line in the master environment.
 
+The red numbers in each screenshot match the numbered steps below it.
+
+![Environment default values form](images/default-values.png)
+
+1. Click **New** to add a default value.
+2. **Default value id**: the name code jobs read it by, for example `EnableUsersList`.
+3. **Value type**: String, Integer and so on.
+4. **Field value**: the value itself. Separate list items with commas.
+
 ## Fields
 
 | Field | Description |

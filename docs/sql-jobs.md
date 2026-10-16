@@ -6,6 +6,15 @@
 
 A SQL job is one SQL statement that runs directly against the database when the setup is [executed](execute.md) with **Execute SQL**. Use it for bulk changes that would be slow or impossible record by record.
 
+The red numbers in each screenshot match the numbered steps below it.
+
+![SQL jobs form](images/sql-jobs.png)
+
+1. Click **New** to add a SQL job.
+2. Enter **Environment id**, **Company** and **SQL job id**; together they identify the job.
+3. Set **Active**. Only active jobs run.
+4. Enter the **SQL statement**. `%DataAreaId%` is replaced with the company.
+
 ## Fields
 
 | Field | Description |
