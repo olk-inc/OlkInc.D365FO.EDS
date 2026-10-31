@@ -72,12 +72,12 @@ public class OLK_EnvironmentDataSetupTrans extends common
 				<Name>fieldName</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Returns the AOT name of the referenced field, or the edit method for encrypted fields.
+    /// Returns the AOT name of the referenced field, or the edit method of an encrypted line that has one.
     /// </summary>
     [SysClientCacheDataMethodAttribute(true)]
     public display FieldName fieldName()
     {
-        if (this.EncryptedField)
+        if (this.EncryptedMethodName)
         {
             return this.EncryptedMethodName;
         }
@@ -159,29 +159,29 @@ public class OLK_EnvironmentDataSetupTrans extends common
 				<Name>dataFieldName</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Gets or sets the referenced field by its AOT name, or the edit method for encrypted fields.
+    /// Gets or sets the referenced field by its AOT name. On an encrypted line the name can also be an edit method of the table.
     /// </summary>
     /// <param name = "_set">true when the value is set.</param>
-    /// <param name = "_name">The field name, or the edit method name for encrypted fields.</param>
+    /// <param name = "_name">The field name, or the edit method name on an encrypted line.</param>
     /// <returns>The AOT name of the referenced field or edit method.</returns>
     public edit FieldName dataFieldName(boolean _set, FieldName _name)
     {
         if (_set)
         {
+            FieldId fieldId = (_name && this.RefTableId) ? fieldName2Id(this.RefTableId, _name) : 0;
+
             if (this.EncryptedField)
             {
-                if (_name != this.EncryptedMethodName)
+                if (fieldId != this.FieldId || (fieldId ? '' : _name) != this.EncryptedMethodName)
                 {
                     this.clearCipherText();
                 }
 
-                this.FieldId             = 0;
-                this.EncryptedMethodName = _name;
+                this.FieldId             = fieldId;
+                this.EncryptedMethodName = fieldId ? '' : _name;
             }
             else
             {
-                FieldId fieldId = (_name && this.RefTableId) ? fieldName2Id(this.RefTableId, _name) : 0;
-
                 if (_name && !fieldId)
                 {
                     checkFailed(strFmt("@OLK_EDSLabel:FieldNotFound", _name, this.tableName()));
@@ -248,12 +248,16 @@ public class OLK_EnvironmentDataSetupTrans extends common
             return;
         }
 
-        this.Value = '';
-
         if (!_value)
         {
+            this.Value      = '';
             this.CipherText = '';
             return;
+        }
+
+        if (!this.isValidValue(_value))
+        {
+            throw error(strFmt("@OLK_EDSLabel:EncryptedValueInvalid", this.fieldName()));
         }
 
         environment = OLK_EnvironmentDataSetupTable::find(this.EnvironmentId);
@@ -263,7 +267,24 @@ public class OLK_EnvironmentDataSetupTrans extends common
             throw error(strFmt("@OLK_EDSLabel:EnvironmentNotEnrolled", this.EnvironmentId));
         }
 
-        this.CipherText = OLK_EnvironmentDataSetupCrypto::encrypt(environment.PublicKey, _value, this.encryptionBinding());
+        this.CipherText = OLK_EnvironmentDataSetupCrypto::encrypt(environment.PublicKey, this.normalizeValue(_value), this.encryptionBinding());
+        this.Value      = '';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isValidValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks a value against the type of the referenced field. An encrypted value cannot be checked after it is encrypted, so
+    /// this is done first. A value for an edit method is not checked, because the method decides what it accepts.
+    /// </summary>
+    private boolean isValidValue(str _value)
+    {
+        DictField dictField = this.referencedDictField();
+
+        return this.EncryptedMethodName || !dictField || OLK_EnvironmentDataSetupValueConverter::isValid(this.normalizeValue(_value), dictField);
     }
 
 ]]></Source>
@@ -272,16 +293,23 @@ public class OLK_EnvironmentDataSetupTrans extends common
 				<Name>encryptionBinding</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// The text an encrypted value is bound to: environment, company, table, edit method and record. A cipher text cannot be
-    /// decrypted for a line where any of these differ.
+    /// The text an encrypted value is bound to: environment, company, table, edit method or field, and record. A cipher text
+    /// cannot be decrypted for a line where any of these differ.
     /// </summary>
     public str encryptionBinding()
     {
+        str target = this.EncryptedMethodName;
+
+        if (!target && this.RefTableId && this.FieldId)
+        {
+            target = 'field:' + fieldId2Name(this.RefTableId, this.FieldId);
+        }
+
         return strLwr(strFmt('%1|%2|%3|%4|%5',
             this.EnvironmentId,
             this.RefDataAreaId,
             this.RefTableId ? tableId2Name(this.RefTableId) : '',
-            this.EncryptedMethodName,
+            target,
             int642Str(this.RefRecId)));
     }
 
@@ -354,11 +382,11 @@ public class OLK_EnvironmentDataSetupTrans extends common
 				<Name>referencedDictField</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// The referenced field; null for encrypted fields or when no field is selected.
+    /// The referenced field; null when no field is selected.
     /// </summary>
     public DictField referencedDictField()
     {
-        if (this.EncryptedField || !this.RefTableId || !this.FieldId)
+        if (!this.RefTableId || !this.FieldId)
         {
             return null;
         }
@@ -450,9 +478,30 @@ public class OLK_EnvironmentDataSetupTrans extends common
         switch (_fieldId)
         {
             case fieldNum(OLK_EnvironmentDataSetupTrans, EncryptedField):
-                this.FieldId             = 0;
                 this.EncryptedMethodName = '';
-                this.Value               = '';
+
+                if (this.EncryptedField)
+                {
+                    // The line keeps its field, and a plain value becomes cipher text straight away.
+                    this.setEncryptedValue(this.Value);
+                }
+                else
+                {
+                    // This environment cannot decrypt the value, so it must be entered again.
+                    this.Value = '';
+                    this.clearCipherText();
+                }
+                break;
+
+            case fieldNum(OLK_EnvironmentDataSetupTrans, EncryptedMethodName):
+                if (this.EncryptedMethodName)
+                {
+                    this.FieldId = 0;
+                }
+                this.clearCipherText();
+                break;
+
+            case fieldNum(OLK_EnvironmentDataSetupTrans, FieldId):
                 this.clearCipherText();
                 break;
 
@@ -474,6 +523,34 @@ public class OLK_EnvironmentDataSetupTrans extends common
 ]]></Source>
 			</Method>
 			<Method>
+				<Name>validateField</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Refuses to mark a line as encrypted when its value could not be encrypted, so that a plain value is never left on an
+    /// encrypted line.
+    /// </summary>
+    public boolean validateField(FieldId _fieldIdToCheck)
+    {
+        boolean ret = super(_fieldIdToCheck);
+
+        if (ret && _fieldIdToCheck == fieldNum(OLK_EnvironmentDataSetupTrans, EncryptedField) && this.EncryptedField)
+        {
+            if (!OLK_EnvironmentDataSetupTable::find(this.EnvironmentId).PublicKey)
+            {
+                ret = checkFailed(strFmt("@OLK_EDSLabel:EnvironmentNotEnrolled", this.EnvironmentId));
+            }
+            else if (this.Value && !this.isValidValue(this.Value))
+            {
+                ret = checkFailed(strFmt("@OLK_EDSLabel:EncryptedValueInvalid", this.fieldName()));
+            }
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
 				<Name>validateWrite</Name>
 				<Source><![CDATA[
     public boolean validateWrite()
@@ -488,12 +565,16 @@ public class OLK_EnvironmentDataSetupTrans extends common
 
         if (ret)
         {
-            if (this.EncryptedField)
+            if (this.EncryptedMethodName)
             {
-                if (!this.EncryptedMethodName || !tableHasMethod(dictTable, this.EncryptedMethodName))
+                if (!tableHasMethod(dictTable, this.EncryptedMethodName))
                 {
                     ret = checkFailed(strFmt("@OLK_EDSLabel:FieldNotFound", this.EncryptedMethodName, dictTable.name()));
                 }
+            }
+            else if (this.EncryptedField && !this.FieldId)
+            {
+                ret = checkFailed("@OLK_EDSLabel:EncryptedFieldOrMethodEmpty");
             }
             else if (!this.referencedDictField())
             {
@@ -506,7 +587,7 @@ public class OLK_EnvironmentDataSetupTrans extends common
             ret = checkFailed("@OLK_EDSLabel:CompanyEmpty");
         }
 
-        if (ret && this.EncryptedField && this.Value && this.Value != this.orig().Value)
+        if (ret && this.EncryptedField && this.Value && (this.Value != this.orig().Value || !this.orig().EncryptedField))
         {
             // Encrypted values are stored as cipher text only; a plain value can arrive only by import or code.
             ret = checkFailed("@OLK_EDSLabel:EncryptedValueNotEncrypted");
@@ -624,18 +705,30 @@ public class OLK_EnvironmentDataSetupTrans extends common
             }
         }
 
+        // A line that was marked as encrypted stays encrypted when it is overwritten.
+        boolean keepEncrypted = trans.RecId && trans.EncryptedField;
+
         trans.EnvironmentId         = _environmentId;
         trans.RefDataAreaId         = dataAreaId;
         trans.RefTableId            = _record.TableId;
         trans.RefRecId              = _record.RecId;
         trans.FieldId               = _fieldId;
         trans.EncryptedMethodName   = _encryptedMethodName;
-        trans.EncryptedField        = _fieldId ? NoYes::No : NoYes::Yes;
+        trans.EncryptedField        = (keepEncrypted || !_fieldId) ? NoYes::Yes : NoYes::No;
         trans.Description           = _description ? _description : (_fieldId ? fieldId2PName(_record.TableId, _fieldId) : _encryptedMethodName);
 
         if (_fieldId)
         {
-            trans.Value = OLK_EnvironmentDataSetupValueConverter::toStr(_record.(_fieldId), new DictField(_record.TableId, _fieldId));
+            str value = OLK_EnvironmentDataSetupValueConverter::toStr(_record.(_fieldId), new DictField(_record.TableId, _fieldId));
+
+            if (keepEncrypted)
+            {
+                trans.setEncryptedValue(value);
+            }
+            else
+            {
+                trans.Value = value;
+            }
         }
 
         trans.write();

@@ -35,7 +35,7 @@ public class OLK_EnvironmentDataSetupTrans extends FormRun
 
         if (dialog.run())
         {
-            OLK_EnvironmentDataSetupTrans.Value = int2Str(any2Int(enumField.value()));
+            OLK_EnvironmentDataSetupTrans.editValue(true, int2Str(any2Int(enumField.value())));
             OLK_EnvironmentDataSetupTrans_ds.refresh();
         }
     }

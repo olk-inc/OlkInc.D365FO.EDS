@@ -108,6 +108,61 @@ public static class OLK_EnvironmentDataSetupValueConverter
 ]]></Source>
 			</Method>
 			<Method>
+				<Name>isValid</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks that text can be converted to the type of a field without losing anything.
+    /// </summary>
+    /// <param name = "_value">The text.</param>
+    /// <param name = "_dictField">The field the value is written to.</param>
+    /// <returns>true if <c>fromStr</c> gives the value the text describes.</returns>
+    public static boolean isValid(str _value, DictField _dictField)
+    {
+        switch (_dictField.baseType())
+        {
+            case Types::String:
+            case Types::RString:
+            case Types::VarString:
+                return _dictField.stringLen() <= 0 || strLen(_value) <= _dictField.stringLen();
+
+            case Types::Integer:
+            case Types::Int64:
+                return System.Text.RegularExpressions.Regex::IsMatch(_value, @'^-?\d+$');
+
+            case Types::Real:
+                return System.Text.RegularExpressions.Regex::IsMatch(_value, @'^-?\d+(\.\d+)?$');
+
+            case Types::Enum:
+                DictEnum dictEnum = new DictEnum(_dictField.enumId());
+
+                for (int i = 0; i < dictEnum.values(); i++)
+                {
+                    if (_value == int2Str(dictEnum.index2Value(i)) || _value == dictEnum.index2Symbol(i))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+
+            case Types::Date:
+                return System.Text.RegularExpressions.Regex::IsMatch(_value, @'^\d{4}-\d{2}-\d{2}$')
+                    && (str2Date(_value, 321) != dateNull() || _value == '1900-01-01');
+
+            case Types::UtcDateTime:
+                return System.Text.RegularExpressions.Regex::IsMatch(_value, @'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$');
+
+            case Types::Guid:
+                return System.Text.RegularExpressions.Regex::IsMatch(_value, @'^\{?[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\}?$');
+
+            default:
+                return false;
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
 				<Name>enumValue</Name>
 				<Source><![CDATA[
     /// <summary>

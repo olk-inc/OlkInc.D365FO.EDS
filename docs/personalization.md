@@ -47,6 +47,8 @@ The group is shown only when all of these hold:
 
 Encrypted fields are shown through edit methods. For such a control the line is created as an encrypted line with the edit method's name and no value; enter the value in the Data setup form.
 
+To encrypt the value of a normal field, create the line here and then set **Encrypted field** to Yes in the Data setup form. See [Encrypting a normal field](encryption.md#encrypting-a-normal-field).
+
 If the control is bound neither to a table field nor to an edit method, or no record is selected, the button reports *The control is not bound to a table field or an edit method.*
 
 ## Implementation
