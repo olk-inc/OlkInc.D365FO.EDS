@@ -132,7 +132,7 @@ if ($FnoVersion) {
 }
 if ($fscpsHasVersion) { $packages = @(Restore-FromFscps) }
 elseif ($FeedUrl) { $packages = @(Restore-FromFeed) }
-elseif ($FnoVersion) { throw "No packages for F&O $FnoVersion: the fscps.tools community storage does not list it and no NuGet feed is configured." }
+elseif ($FnoVersion) { throw "No packages for F&O ${FnoVersion}: the fscps.tools community storage does not list it and no NuGet feed is configured." }
 else { throw 'No package source: give -FnoVersion (fscps.tools community storage) or set D365_NUGET_FEED_URL (your own feed). See docs/build-and-release.md.' }
 $packages | ForEach-Object { Write-Host "Package $($_.Id) $($_.Version)" }
 
