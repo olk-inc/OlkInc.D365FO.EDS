@@ -1,0 +1,100 @@
+# Builds the X++ models and creates deployable packages.
+#   Pull request or push to main: build and keep the packages as a workflow artifact for 14 days.
+#   Tag v<major>.<minor>.<build> (for example v1.2.0): build version <major>.<minor>.<build>.<run number>
+#   and publish the packages as a GitHub release.
+# Setup (secrets, NuGet packages from LCS) is in docs/build-and-release.md.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    env:
+      NUGET_PATH: ${{ github.workspace }}\out\nuget
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version
+        id: version
+        shell: pwsh
+        run: |
+          $ref = '${{ github.ref }}'
+          if ($ref -match '^refs/tags/v(\d+)\.(\d+)\.(\d+)$') {
+            $version = "$($Matches[1]).$($Matches[2]).$($Matches[3]).${{ github.run_number }}"
+            $release = 'true'
+          } elseif ($ref -like 'refs/tags/*') {
+            throw "Tag '$ref' must look like v1.2.0."
+          } else {
+            [xml] $d = Get-Content -Raw 'Metadata/OlkInc-D365FO-EDS/Descriptor/OlkInc-D365FO-EDS.xml'
+            $m = $d.AxModelInfo
+            $version = "$($m.VersionMajor).$($m.VersionMinor).$($m.VersionBuild).${{ github.run_number }}"
+            $release = 'false'
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "release=$release" >> $env:GITHUB_OUTPUT
+          Write-Host "Version $version, release $release"
+
+      # The Microsoft packages are several GB; restore them from the feed once per packages.config.
+      - name: Cache X++ build packages
+        uses: actions/cache@v4
+        with:
+          path: out/nuget
+          key: d365-nuget-${{ hashFiles('build/packages.config') }}
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build models and deployable packages
+        shell: pwsh
+        env:
+          D365_NUGET_FEED_URL: ${{ secrets.D365_NUGET_FEED_URL }}
+          D365_NUGET_FEED_USER: ${{ secrets.D365_NUGET_FEED_USER }}
+          D365_NUGET_FEED_TOKEN: ${{ secrets.D365_NUGET_FEED_TOKEN }}
+        run: ./build/Build-EDS.ps1 -Version '${{ steps.version.outputs.version }}' -NuGetPath $env:NUGET_PATH
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: OlkInc-D365FO-EDS-${{ steps.version.outputs.version }}
+          path: out/release/*.zip
+          retention-days: 14
+
+      - name: Publish release
+        if: steps.version.outputs.release == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = '${{ steps.version.outputs.version }}'
+          $notes = @"
+          Model version $v, built from ${{ github.sha }}.
+
+          - **OlkInc-D365FO-EDS-$v.zip**: the model. Deploy to any environment, including production.
+          - **OlkInc-D365FO-EDS-Test-$v.zip**: the model and its tests. Development and test environments only.
+
+          Installation: see docs/build-and-release.md.
+          "@
+          $assets = Get-ChildItem out/release/*.zip | ForEach-Object FullName
+          $tag = '${{ github.ref_name }}'
+          # A release created in the GitHub UI already exists when this runs: add the files to it.
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag @assets --clobber
+          } else {
+            gh release create $tag @assets --title "OlkInc-D365FO-EDS $v" --notes $notes --verify-tag
+          }
+          if ($LASTEXITCODE) { throw "Publishing the release failed ($LASTEXITCODE)." }
