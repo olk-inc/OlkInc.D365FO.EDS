@@ -168,6 +168,7 @@ if (-not $msbuild) {
 if (-not $msbuild) { throw 'MSBuild was not found. Install Visual Studio 2022 or Build Tools 2022.' }
 
 $referenceFolders = @($referencePackages | ForEach-Object { Join-Path $_.Path 'ref\net40' }) + @($metadata, $bin)
+# MSBuild splits /p: values at ';', so the list separator is passed escaped (%3B); MSBuild unescapes it.
 $models = @($mainModel)
 if ($hasAppSuite) { $models += $testModel } else { Write-Warning "No ApplicationSuite package (or -SkipTestModel): $testModel is not built." }
 
@@ -178,7 +179,7 @@ foreach ($model in $models) {
         "/p:BuildTasksDirectory=$compilerPath\DevAlm" `
         "/p:MetadataDirectory=$metadata" `
         "/p:FrameworkDirectory=$compilerPath" `
-        "/p:ReferenceFolder=$($referenceFolders -join ';')" `
+        "/p:ReferenceFolder=$($referenceFolders -join '%3B')" `
         "/p:ReferencePath=$compilerPath" `
         "/p:OutputDirectory=$bin"
     $exit = $LASTEXITCODE
