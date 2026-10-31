@@ -172,10 +172,38 @@ $referenceFolders = @($referencePackages | ForEach-Object { Join-Path $_.Path 'r
 $models = @($mainModel)
 if ($hasAppSuite) { $models += $testModel } else { Write-Warning "No ApplicationSuite package (or -SkipTestModel): $testModel is not built." }
 
+# The X++ build tasks read the solution file (SolutionFileParser), so each project is built through a
+# one-project solution in the work folder, the same way Visual Studio and the Microsoft pipelines build it.
+function New-ModelSolution([string] $model) {
+    $proj = Join-Path $PSScriptRoot "projects\$model\$model.rnrproj"
+    [xml] $p = Get-Content -Raw $proj
+    $guid = ($p.Project.PropertyGroup | ForEach-Object { $_.ProjectGuid } | Where-Object { $_ } | Select-Object -First 1).ToUpperInvariant()
+    $sln = Join-Path $WorkPath "$model.sln"
+    $cfg = "$guid.Debug|Any CPU"
+    @(
+        'Microsoft Visual Studio Solution File, Format Version 12.00'
+        '# Visual Studio Version 17'
+        'VisualStudioVersion = 17.0.31903.59'
+        'MinimumVisualStudioVersion = 10.0.40219.1'
+        "Project(`"{FC65038C-1B2F-41E1-A629-BED71D161FFF}`") = `"$model`", `"$proj`", `"$guid`""
+        'EndProject'
+        'Global'
+        "`tGlobalSection(SolutionConfigurationPlatforms) = preSolution"
+        "`t`tDebug|Any CPU = Debug|Any CPU"
+        "`tEndGlobalSection"
+        "`tGlobalSection(ProjectConfigurationPlatforms) = postSolution"
+        "`t`t$cfg.ActiveCfg = Debug|Any CPU"
+        "`t`t$cfg.Build.0 = Debug|Any CPU"
+        "`tEndGlobalSection"
+        'EndGlobal'
+    ) | Set-Content $sln -Encoding utf8
+    return $sln
+}
+
 foreach ($model in $models) {
     Write-Host "::group::Compile $model"
-    $proj = Join-Path $PSScriptRoot "projects\$model\$model.rnrproj"
-    & $msbuild $proj /nologo /m /verbosity:minimal /p:Configuration=Debug `
+    $sln = New-ModelSolution $model
+    & $msbuild $sln /nologo /m /verbosity:minimal /p:Configuration=Debug "/p:Platform=Any CPU" `
         "/p:BuildTasksDirectory=$compilerPath\DevAlm" `
         "/p:MetadataDirectory=$metadata" `
         "/p:FrameworkDirectory=$compilerPath" `

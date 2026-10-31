@@ -54,8 +54,10 @@ jobs:
           Write-Host "Model version $version"
 
       # The Microsoft packages are several GB; download them once per F&O version.
-      - name: Cache X++ build packages
-        uses: actions/cache@v4
+      # Saved in a separate step after the build, so a failed compile does not throw the download away.
+      - name: Restore X++ build packages
+        id: nuget-cache
+        uses: actions/cache/restore@v4
         with:
           path: out/nuget
           key: d365-nuget-${{ steps.fno.outputs.fno }}
@@ -76,6 +78,13 @@ jobs:
           -VersionStrategy GA
           -PackageSuffix '-FO${{ steps.fno.outputs.fno }}'
           -NuGetPath $env:NUGET_PATH
+
+      - name: Save X++ build packages
+        if: always() && steps.nuget-cache.outputs.cache-hit != 'true' && hashFiles('out/nuget/**/*.nuspec') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: out/nuget
+          key: d365-nuget-${{ steps.fno.outputs.fno }}
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
