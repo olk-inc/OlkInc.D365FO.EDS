@@ -224,43 +224,11 @@ foreach ($model in $models) {
 }
 
 # ---------------------------------------------------------------- 4. Deployable packages
-function Find-CompilerFile([string] $name) {
-    $default = Join-Path $compilerPath "ref\net40\$name"
-    if (Test-Path $default) { return $default }
-    $found = Get-ChildItem $compilerPath -Recurse -Filter $name | Select-Object -First 1
-    if (-not $found) { throw "$name not found in $compilerPath." }
-    return $found.FullName
-}
-$createPackage = Find-CompilerFile 'CreatePackage.psm1'
-$xppTools = Split-Path $createPackage
-$basePackage = Find-CompilerFile 'BaseMetadataDeployablePackage.zip'
-Import-Module $createPackage -Force
-# CreatePackage.psm1 needs the metadata assemblies loaded first (as in Microsoft's and fscps.tools' packaging).
-$assemblyDir = Split-Path (Find-CompilerFile 'Microsoft.Dynamics.AX.Metadata.dll')
-foreach ($a in @('Microsoft.Dynamics.AX.Metadata.Core', 'Microsoft.Dynamics.AX.Metadata', 'Microsoft.Dynamics.AX.Metadata.Storage',
-        'Microsoft.Dynamics.ApplicationPlatform.XppServices.Instrumentation', 'Microsoft.Dynamics.AX.Metadata.Management.Core',
-        'Microsoft.Dynamics.AX.Metadata.Management.Delta', 'Microsoft.Dynamics.AX.Metadata.Management.Diff',
-        'Microsoft.Dynamics.AX.Metadata.Management.Merge')) {
-    $file = Join-Path $assemblyDir "$a.dll"
-    if (Test-Path $file) { [Reflection.Assembly]::LoadFile($file) | Out-Null } else { Write-Warning "$a.dll not found in $assemblyDir." }
-}
-Add-Type -Path (Find-CompilerFile 'Microsoft.Dynamics.AXCreateDeployablePackageBase.dll')
-
-function New-EdsDeployablePackage([string] $name, [string[]] $modules) {
-    $stage = Join-Path $WorkPath "stage-$name"
-    $combined = Join-Path $WorkPath "$name-runtime.zip"
-    $target = Join-Path $OutputPath "$name-$Version$PackageSuffix.zip"
-    foreach ($p in @($stage, $combined, $target)) { if (Test-Path $p) { Remove-Item $p -Recurse -Force } }
-    New-Item -ItemType Directory -Path $stage | Out-Null
-    foreach ($m in $modules) {
-        New-XppRuntimePackage -packageName $m -packageDrop (Join-Path $bin $m) -outputDir $stage -metadataDir $bin `
-            -packageVersion $Version -binDir $xppTools -enforceVersionCheck $true | Out-Null
-    }
-    [Microsoft.Dynamics.AXCreateDeployablePackageBase.BuildDeployablePackages]::CreateMetadataPackage($stage, $combined) | Out-Null
-    [Microsoft.Dynamics.AXCreateDeployablePackageBase.BuildDeployablePackages]::MergePackage($basePackage, $combined, $target, $true, [string]::Empty) | Out-Null
-    if (-not (Test-Path $target)) { throw "Deployable package $target was not created." }
-    Write-Host "Created $target"
-}
-
-New-EdsDeployablePackage $mainModel @($mainModel)
-if ($hasAppSuite) { New-EdsDeployablePackage $testModel @($mainModel, $testModel) }
+# Microsoft's packaging module and metadata assemblies are .NET Framework code: run them in Windows PowerShell 5.1.
+$packageArgs = @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'New-EdsPackages.ps1'),
+    '-CompilerPath', $compilerPath, '-BinPath', $bin, '-WorkPath', $WorkPath, '-OutputPath', $OutputPath,
+    '-Version', $Version, '-MainModel', $mainModel)
+if ($PackageSuffix) { $packageArgs += @('-PackageSuffix', $PackageSuffix) }
+if ($hasAppSuite) { $packageArgs += @('-TestModel', $testModel) }
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" @packageArgs
+if ($LASTEXITCODE) { throw "Creating the deployable packages failed ($LASTEXITCODE)." }
