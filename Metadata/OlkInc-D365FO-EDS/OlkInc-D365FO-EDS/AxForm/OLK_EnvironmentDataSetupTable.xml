@@ -152,7 +152,6 @@ public class OLK_EnvironmentDataSetupTable extends FormRun
 					<AxFormControl xmlns=""
 						i:type="AxFormButtonGroupControl">
 						<Name>EncryptionGroup</Name>
-						<Caption>@OLK_EDSLabel:Encryption</Caption>
 						<FilterExpression>%1</FilterExpression>
 						<Type>ButtonGroup</Type>
 						<FormControlExtension

@@ -138,7 +138,6 @@ EncryptedBlob=Encrypted data
 EncryptedBlobHelp=Data stored with the platform encryption of the environment that wrote it.
 EncryptedValueCleared=The encrypted value was cleared because the line changed. Enter the value again.
 EncryptedValueNotEncrypted=Values of encrypted fields must be entered in the Field value column, so that they are stored encrypted.
-Encryption=Encryption
 EnrolmentFileInvalid=The enrolment file cannot be read: %1
 EnrolmentFingerprintMismatch=The fingerprint in the enrolment does not match its public key. The enrolment was changed.
 EnrolmentHostMismatch=The enrolment belongs to %1, but the environment URL is %2.

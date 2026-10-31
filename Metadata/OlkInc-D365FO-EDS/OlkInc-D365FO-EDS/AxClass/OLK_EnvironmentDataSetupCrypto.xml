@@ -312,12 +312,8 @@ public static class OLK_EnvironmentDataSetupCrypto
     /// </summary>
     public static str blobToBase64(OLK_EdsEncryptedBlob _blob)
     {
-        BinData binData = new BinData();
-
-        binData.setData(_blob);
-
         // base64Encode adds a line break every 72 characters; enrolment.txt has one value per line.
-        return strRem(binData.base64Encode(), "\r\n");
+        return strRem(con2base64str(_blob), "\r\n");
     }
 
 ]]></Source>
@@ -330,7 +326,7 @@ public static class OLK_EnvironmentDataSetupCrypto
     /// </summary>
     public static OLK_EdsEncryptedBlob base64ToBlob(str _text)
     {
-        return BinData::loadFromBase64(_text);
+        return base64str2con(_text);
     }
 
 ]]></Source>
