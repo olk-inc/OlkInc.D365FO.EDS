@@ -125,7 +125,20 @@ To check that you enrolled the right key, compare the **Key fingerprint** in the
 
 ## Entering encrypted values
 
-In the master, open [Data setup](data-setup.md) for the sandbox and add a line with the table and record:
+Any field can have an encrypted value. The line needs an edit method only if the field cannot be assigned directly.
+
+### Encrypting a normal field
+
+1. In the master, create the line for the sandbox, the quickest way being **Create environment data** in the [Personalize pop-up](personalization.md). The line holds the field's current value in plain text.
+2. Open [Data setup](data-setup.md), select the line and set **Encrypted field** to Yes. The value is checked against the field's type and encrypted at once. The line keeps its field, **Field value** shows `********`, and the plain value is removed from the line.
+3. Save the line.
+4. Type the value the sandbox should get over the mask. Otherwise the sandbox gets the master's value, which stays readable in the master's own field.
+
+If the value does not fit the field, or the sandbox has no key, **Encrypted field** stays at No and the plain value is kept.
+
+### Fields that need an edit method
+
+Fields that D365 encrypts itself, such as password fields, cannot be assigned directly. For these, enter the name of the table's edit method:
 
 ![An encrypted data setup line](images/data-setup-encrypted.png)
 
@@ -134,9 +147,14 @@ In the master, open [Data setup](data-setup.md) for the sandbox and add a line w
 3. Type the value in **Field value**. It is encrypted as you leave the field, and the form shows `********`.
 4. The grid shows the mask too.
 
+### Good to know
+
 - The sandbox must have a key first, otherwise *Environment UAT has no encryption key* is shown.
-- If you change the line's environment, company, table, edit method or record, the encrypted value is cleared and must be typed again.
+- If you change the line's environment, company, table, field, edit method or record, the encrypted value is cleared and must be typed again.
 - To change a value, type the new one over the mask. Clearing the field clears the value.
+- Setting **Encrypted field** back to No clears the value, because the master cannot decrypt it. Type it again.
+- A value for a normal field is checked against the field's type before it is encrypted, in the [value format](data-setup.md#value-format). A value for an edit method is not checked.
+- **Create environment data** on a line that is already encrypted, with overwriting, encrypts the field's current value. The line stays encrypted.
 
 ## After the refresh
 
@@ -212,6 +230,10 @@ The first call creates the sandbox's key; later calls return the same key.
 
 | Threat | Protected |
 | --- | --- |
+| The master's own value of a field, in the master's forms and database | No. Encryption protects the value on the data setup line, not the field the line points at. |
+| The plain value on a line before it was marked as encrypted | Partly. It is removed from the line, but backups and database logs from before that moment still hold it. Type real secrets only after marking the line. |
+| The value in a normal field in the sandbox after execution | No. It is a normal field there, shown and stored in plain text. |
+| A sandbox after a refresh, before execution | No. Its normal fields still hold the master's values until the setup is executed. |
 | Reading a sandbox's secrets in the master's forms | Yes. Only the mask is shown. |
 | Reading them from a database dump or backup of the master | Yes. Only cipher text and locked keys are stored. |
 | Reading them in another sandbox or a development box restored from a copy | Yes. The key does not unlock there. |

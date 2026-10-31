@@ -25,7 +25,7 @@ The red numbers in each screenshot match the numbered steps below it.
 | Description | What the line is for. Lines created from the Personalize pop-up get the control's label. |
 | Company | The company of the record. Filled with the current company for company specific tables and cleared for shared tables when you pick the table. Required for company specific tables. |
 | Table name / Table id / Table label | The table that holds the record. Enter the table's AOT name; the id and label are shown. Changing the table clears the field. |
-| Field name / Field id / Field label | The field to write. The lookup lists the fields of the table. For an encrypted field this is the edit method instead (see below). |
+| Field name / Field id / Field label | The field to write. The lookup lists the fields of the table. A line with an edit method shows the method here instead (see below). |
 | Field value | The value to write, as culture independent text (see below). Encrypted values are shown as `********`. |
 | Enum value | For enum fields, the label of the value. |
 | Record id | The RecId of the record to update. |
@@ -60,9 +60,11 @@ For enum fields you can type the number, the symbol (`Yes`) or the label; the fo
 
 ## Encrypted fields
 
-Encrypted fields cannot be assigned directly. Set **Encrypted field** to Yes and enter, in **Edit method name**, the name of the edit method on the table that sets the value. At execution the edit method is called with the value. The value is masked in the form and is not written to the log.
+Set **Encrypted field** to Yes to keep a line's value unreadable everywhere except in the line's environment. The value is encrypted with the key of that environment as soon as you set the option or type the value, and only the encrypted value is stored. The form shows `********`, and the value is not written to the log. A plain value already on the line is checked against the field's type and encrypted, and the line keeps its field.
 
-The value is encrypted with the key of the line's environment as soon as you type it, and only the encrypted value is stored. The environment must have a key first, and only that environment can decrypt the value when its setup is executed. See [Encrypted values for each environment](encryption.md).
+**Edit method name** is optional. Leave it empty for a normal field. Fill it in for a field that cannot be assigned directly, such as a password field: at execution the edit method is called with the value.
+
+The environment must have a key first. See [Encrypted values for each environment](encryption.md), which also lists what this does not protect.
 
 ## Adding lines
 
@@ -75,8 +77,8 @@ For each line of the environment, in its company:
 
 1. The record is selected for update by RecId. If it is not found, the line is logged as Error.
 2. The current value is read and kept as the original value for the log.
-3. The new value is converted to the field's type and assigned (for encrypted fields the value is decrypted and the edit method is called instead).
-4. `validateField` and `validateWrite` of the table must pass; otherwise the line is logged as Error and the record is not changed.
+3. The new value is converted to the field's type and assigned (an encrypted value is decrypted first, and a line with an edit method calls the method instead of assigning; the previous value of an encrypted line is not kept).
+4. `validateField` and `validateWrite` of the table must pass (not checked for lines with an edit method); otherwise the line is logged as Error and the record is not changed.
 5. The record is updated with `update()`, so the table's own update logic runs.
 
 Each line runs in its own transaction, so one failing line does not stop the others. See [Executing the setup](execute.md) and [Log](log.md).

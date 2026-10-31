@@ -21,6 +21,7 @@ class OLK_EnvironmentDataSetupEncryptionTest extends SysTestCase
     public const str OtherEnvironmentId = 'EDSENC2';
     public const str Secret             = 'EDS secret value äöü 123';
     public const str Binding            = 'edsenc|dat|custgroup|editsecret|42';
+    public const str PlainValue         = 'EDS value for the sandbox';
 }
 ]]></Declaration>
 		<Methods>
@@ -340,6 +341,310 @@ class OLK_EnvironmentDataSetupEncryptionTest extends SysTestCase
         trans.RefRecId = OLK_EnvironmentDataSetupTable::find(OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId).RecId;
 
         this.assertFalse(this.canDecrypt(privateKey, cipherText, trans.encryptionBinding()), 'A value was decrypted for another record.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testMarkingPlainLineEncryptsItsValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A plain line, as the Personalize pop-up creates it, keeps its field when it is marked as encrypted, and its value becomes
+    /// cipher text that only the key of the environment can read.
+    /// </summary>
+    [SysTestMethod]
+    public void testMarkingPlainLineEncryptsItsValue()
+    {
+        OLK_EnvironmentDataSetupTrans   trans = this.addPlainDescriptionLine(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId, OLK_EnvironmentDataSetupEncryptionTest::PlainValue);
+        str                             privateKey = OLK_EnvironmentDataSetupKeyManager::privateKeyForEnvironment(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId);
+
+        this.markEncrypted(trans);
+
+        this.assertEquals(fieldNum(OLK_EnvironmentDataSetupTable, Description), trans.FieldId, 'The line lost its field.');
+        this.assertEquals('', trans.EncryptedMethodName, 'The line got an edit method.');
+        this.assertEquals('', trans.Value, 'The plain value stayed on the line.');
+        this.assertEquals(OLK_EnvironmentDataSetupCrypto::ValueMask, trans.editValue(false, ''), 'The form does not mask the value.');
+        this.assertEquals(OLK_EnvironmentDataSetupEncryptionTest::PlainValue, OLK_EnvironmentDataSetupCrypto::decrypt(privateKey, trans.CipherText, trans.encryptionBinding()),
+            'The cipher text does not hold the value.');
+
+        OLK_EnvironmentDataSetupTrans stored;
+
+        select firstonly stored where stored.RecId == trans.RecId;
+
+        this.assertEquals('', stored.Value, 'The plain value was stored.');
+        this.assertEquals(trans.CipherText, stored.CipherText, 'The cipher text was not stored.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testExecuteWritesEncryptedValueToPlainField</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Executing writes the decrypted value to a normal field without an edit method; the log holds neither it nor the old value.
+    /// </summary>
+    [SysTestMethod]
+    public void testExecuteWritesEncryptedValueToPlainField()
+    {
+        RecId                           fromLog = OLK_EnvironmentDataSetupTestHelper::lastLogRecId();
+        OLK_EnvironmentDataSetupTrans   trans = this.addPlainDescriptionLine(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId, OLK_EnvironmentDataSetupEncryptionTest::PlainValue);
+        OLK_EnvironmentDataSetupLog     log;
+
+        this.markEncrypted(trans);
+
+        OLK_EnvironmentDataSetupTestHelper::execute(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId, NoYes::Yes, NoYes::No, NoYes::No);
+
+        log = OLK_EnvironmentDataSetupTestHelper::findLogSince(fromLog, OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId, OLK_EdsLogType::Data, int642Str(trans.RecId));
+
+        this.assertEquals(OLK_EdsLogStatus::OK, log.Status, strFmt('The encrypted line failed: %1', log.ErrorTxt));
+        this.assertEquals('', log.Value, 'The encrypted value was written to the log.');
+        this.assertEquals('', log.ValueOrig, 'The old value of the field was written to the log.');
+        this.assertEquals(OLK_EnvironmentDataSetupEncryptionTest::PlainValue, OLK_EnvironmentDataSetupTable::find(OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId).Description,
+            'The decrypted value was not written to the field.');
+
+        // Restore the description the setup of this test class expects.
+        ttsbegin;
+        OLK_EnvironmentDataSetupTable target = OLK_EnvironmentDataSetupTable::find(OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId, true);
+        target.Description = 'Encryption tests, other URL';
+        target.update();
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testFieldIsPartOfBindingWithoutMethod</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A value for a field cannot be moved to another field of the same record, and lines with an edit method keep their binding,
+    /// so values encrypted before fields were supported stay valid.
+    /// </summary>
+    [SysTestMethod]
+    public void testFieldIsPartOfBindingWithoutMethod()
+    {
+        OLK_EnvironmentDataSetupTrans   trans = this.addPlainDescriptionLine(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId, OLK_EnvironmentDataSetupEncryptionTest::PlainValue);
+        OLK_EnvironmentDataSetupTrans   methodLine = this.addEncryptedLine(OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId);
+        str                             privateKey = OLK_EnvironmentDataSetupKeyManager::privateKeyForEnvironment(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId);
+        str                             cipherText;
+
+        this.markEncrypted(trans);
+        cipherText = trans.CipherText;
+
+        trans.FieldId = fieldNum(OLK_EnvironmentDataSetupTable, EnvironmentUrl);
+
+        this.assertFalse(this.canDecrypt(privateKey, cipherText, trans.encryptionBinding()), 'A value was decrypted for another field.');
+        this.assertEquals(strLwr(strFmt('%1||%2|%3|%4', OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId, tableStr(OLK_EnvironmentDataSetupTable),
+            tableMethodStr(OLK_EnvironmentDataSetupTable, editClientSecret), int642Str(methodLine.RefRecId))),
+            methodLine.encryptionBinding(), 'The binding of lines with an edit method changed.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testMarkingIsRefused</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A line cannot be marked as encrypted when its environment has no key or its value does not fit the field, and the plain
+    /// value stays as it was.
+    /// </summary>
+    [SysTestMethod]
+    public void testMarkingIsRefused()
+    {
+        OLK_EnvironmentDataSetupTrans trans;
+
+        this.assertEquals('', OLK_EnvironmentDataSetupTable::find(OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId).PublicKey, 'The test environment has a key.');
+
+        trans.EnvironmentId  = OLK_EnvironmentDataSetupTestHelper::TestEnvironmentId;
+        trans.RefTableId     = tableNum(OLK_EnvironmentDataSetupTable);
+        trans.RefRecId       = OLK_EnvironmentDataSetupTable::find(OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId).RecId;
+        trans.FieldId        = fieldNum(OLK_EnvironmentDataSetupTable, Description);
+        trans.Value          = OLK_EnvironmentDataSetupEncryptionTest::PlainValue;
+        trans.EncryptedField = NoYes::Yes;
+        this.assertFalse(trans.validateField(fieldNum(OLK_EnvironmentDataSetupTrans, EncryptedField)), 'A line was marked as encrypted without a key.');
+
+        trans.EnvironmentId = OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId;
+        trans.FieldId       = fieldNum(OLK_EnvironmentDataSetupTable, MasterEnvironment);
+        trans.Value         = 'NotAnEnumValue';
+        this.assertFalse(trans.validateField(fieldNum(OLK_EnvironmentDataSetupTrans, EncryptedField)), 'A value that does not fit the field was accepted.');
+        this.assertEquals('NotAnEnumValue', trans.Value, 'The refused value was changed.');
+        this.assertEquals('', trans.CipherText, 'The refused value was encrypted.');
+
+        trans.Value = 'Yes';
+        this.assertTrue(trans.validateField(fieldNum(OLK_EnvironmentDataSetupTrans, EncryptedField)), 'A valid enum value was refused.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testTypedValueIsCheckedBeforeEncrypting</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A value typed on an encrypted line without an edit method is checked against the field, and enum labels are stored as
+    /// their number, as on a plain line.
+    /// </summary>
+    [SysTestMethod]
+    public void testTypedValueIsCheckedBeforeEncrypting()
+    {
+        OLK_EnvironmentDataSetupTrans   trans;
+        str                             privateKey = OLK_EnvironmentDataSetupKeyManager::privateKeyForEnvironment(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId);
+        boolean                         refused;
+
+        trans.EnvironmentId     = OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId;
+        trans.RefTableId        = tableNum(OLK_EnvironmentDataSetupTable);
+        trans.RefRecId          = 42;
+        trans.FieldId           = fieldNum(OLK_EnvironmentDataSetupTable, MasterEnvironment);
+        trans.EncryptedField    = NoYes::Yes;
+
+        try
+        {
+            trans.editValue(true, 'NotAnEnumValue');
+        }
+        catch (Exception::Error)
+        {
+            refused = true;
+        }
+
+        this.assertTrue(refused, 'A value that does not fit the field was encrypted.');
+        this.assertEquals('', trans.CipherText, 'The refused value was encrypted.');
+
+        trans.editValue(true, 'Yes');
+
+        this.assertEquals('1', OLK_EnvironmentDataSetupCrypto::decrypt(privateKey, trans.CipherText, trans.encryptionBinding()), 'The enum value was not stored as its number.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testUnmarkingClearsTheValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A line that is no longer encrypted has no value, because this environment cannot decrypt it. It keeps its field.
+    /// </summary>
+    [SysTestMethod]
+    public void testUnmarkingClearsTheValue()
+    {
+        OLK_EnvironmentDataSetupTrans trans = this.addPlainDescriptionLine(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId, OLK_EnvironmentDataSetupEncryptionTest::PlainValue);
+
+        this.markEncrypted(trans);
+
+        trans.EncryptedField = NoYes::No;
+        trans.modifiedField(fieldNum(OLK_EnvironmentDataSetupTrans, EncryptedField));
+
+        this.assertEquals('', trans.CipherText, 'The cipher text stayed on a plain line.');
+        this.assertEquals('', trans.Value, 'A plain line got a value.');
+        this.assertEquals(fieldNum(OLK_EnvironmentDataSetupTable, Description), trans.FieldId, 'The line lost its field.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testEncryptPlainValuesHandlesFieldLines</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Encrypt plain values also encrypts a plain value on an encrypted line that has a field and no edit method.
+    /// </summary>
+    [SysTestMethod]
+    public void testEncryptPlainValuesHandlesFieldLines()
+    {
+        OLK_EnvironmentDataSetupTrans   trans = this.addPlainDescriptionLine(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId, OLK_EnvironmentDataSetupEncryptionTest::PlainValue);
+        RecId                           recId = trans.RecId;
+        str                             privateKey = OLK_EnvironmentDataSetupKeyManager::privateKeyForEnvironment(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId);
+
+        ttsbegin;
+        select firstonly forupdate trans
+            where trans.RecId == recId;
+        trans.EncryptedField = NoYes::Yes;
+        trans.doUpdate();
+        ttscommit;
+
+        this.assertEquals(1, OLK_EnvironmentDataSetupKeyManager::encryptPlainValues(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId), 'The line was not encrypted.');
+
+        select firstonly trans
+            where trans.RecId == recId;
+
+        this.assertEquals('', trans.Value, 'The plain value stayed on the line.');
+        this.assertEquals(OLK_EnvironmentDataSetupEncryptionTest::PlainValue, OLK_EnvironmentDataSetupCrypto::decrypt(privateKey, trans.CipherText, trans.encryptionBinding()),
+            'The cipher text does not hold the value.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testOverwritingEncryptedLineStaysEncrypted</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adding the field again from the Personalize pop-up does not turn an encrypted line back into a plain one.
+    /// </summary>
+    [SysTestMethod]
+    public void testOverwritingEncryptedLineStaysEncrypted()
+    {
+        OLK_EnvironmentDataSetupTrans   trans = this.addPlainDescriptionLine(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId, OLK_EnvironmentDataSetupEncryptionTest::PlainValue);
+        OLK_EnvironmentDataSetupTable   target = OLK_EnvironmentDataSetupTable::find(OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId);
+        OLK_EnvironmentDataSetupTrans   overwritten;
+
+        this.markEncrypted(trans);
+
+        overwritten = OLK_EnvironmentDataSetupTrans::createTrans(target, fieldNum(OLK_EnvironmentDataSetupTable, Description),
+            OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId, OLK_EdsOverwriteType::Always, '');
+
+        this.assertEquals(trans.RecId, overwritten.RecId, 'A second line was created.');
+        this.assertEquals(NoYes::Yes, overwritten.EncryptedField, 'The line is no longer encrypted.');
+        this.assertEquals('', overwritten.Value, 'The value was stored in plain text.');
+        this.assertTrue(overwritten.CipherText != '', 'The value was not encrypted.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addPlainDescriptionLine</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds a plain line for the description of EDSENC2, as the Personalize pop-up does.
+    /// </summary>
+    private OLK_EnvironmentDataSetupTrans addPlainDescriptionLine(OLK_EdsEnvironmentId _environmentId, str _value)
+    {
+        OLK_EnvironmentDataSetupTrans trans;
+
+        ttsbegin;
+
+        trans.EnvironmentId = _environmentId;
+        trans.RefDataAreaId = '';
+        trans.RefTableId    = tableNum(OLK_EnvironmentDataSetupTable);
+        trans.RefRecId      = OLK_EnvironmentDataSetupTable::find(OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId).RecId;
+        trans.FieldId       = fieldNum(OLK_EnvironmentDataSetupTable, Description);
+        trans.Description   = 'Plain test value';
+        trans.Value         = _value;
+        trans.insert();
+
+        ttscommit;
+
+        return trans;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>markEncrypted</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Sets Encrypted field on a line and saves it, as the form does.
+    /// </summary>
+    private void markEncrypted(OLK_EnvironmentDataSetupTrans _trans)
+    {
+        RecId recId = _trans.RecId;
+
+        ttsbegin;
+
+        select firstonly forupdate _trans
+            where _trans.RecId == recId;
+
+        _trans.EncryptedField = NoYes::Yes;
+        this.assertTrue(_trans.validateField(fieldNum(OLK_EnvironmentDataSetupTrans, EncryptedField)), 'The line could not be marked as encrypted.');
+        _trans.modifiedField(fieldNum(OLK_EnvironmentDataSetupTrans, EncryptedField));
+        this.assertTrue(_trans.validateWrite(), 'The encrypted line could not be saved.');
+        _trans.update();
+
+        ttscommit;
     }
 
 ]]></Source>

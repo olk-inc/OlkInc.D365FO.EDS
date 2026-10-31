@@ -91,7 +91,7 @@ public class OLK_EnvironmentDataSetupExecuteService extends SysOperationServiceB
                     throw error(strFmt("@OLK_EDSLabel:RecordNotFound", tableId2Name(_trans.RefTableId), _trans.RefRecId));
                 }
 
-                if (_trans.EncryptedField)
+                if (_trans.EncryptedMethodName)
                 {
                     OLK_EnvironmentDataSetupEncryptedField::setValue(record, _trans.EncryptedMethodName, encryptedValue);
                 }
@@ -104,8 +104,13 @@ public class OLK_EnvironmentDataSetupExecuteService extends SysOperationServiceB
                         throw error("@OLK_EDSLabel:FieldRefNotFound");
                     }
 
-                    valueOrig = OLK_EnvironmentDataSetupValueConverter::toStr(record.(_trans.FieldId), dictField);
-                    record.(_trans.FieldId) = OLK_EnvironmentDataSetupValueConverter::fromStr(_trans.Value, dictField);
+                    // The previous value of an encrypted line is not logged, as it could be the value of another environment.
+                    if (!_trans.EncryptedField)
+                    {
+                        valueOrig = OLK_EnvironmentDataSetupValueConverter::toStr(record.(_trans.FieldId), dictField);
+                    }
+
+                    record.(_trans.FieldId) = OLK_EnvironmentDataSetupValueConverter::fromStr(_trans.EncryptedField ? encryptedValue : _trans.Value, dictField);
 
                     if (!record.validateField(_trans.FieldId) || !record.validateWrite())
                     {

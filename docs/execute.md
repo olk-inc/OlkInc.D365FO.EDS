@@ -55,4 +55,4 @@ Each data line, code job and SQL job runs on its own. When one fails, its error 
 | `OLK_EnvironmentDataSetupExecuteContract` | The dialog parameters and their validation. |
 | `OLK_EnvironmentDataSetupExecuteService` | Runs the data lines, code jobs and SQL jobs and writes the log. |
 | `OLK_EnvironmentDataSetupValueConverter` | Converts the stored text to the field's type. |
-| `OLK_EnvironmentDataSetupEncryptedField` | Writes encrypted fields through their edit method. |
+| `OLK_EnvironmentDataSetupEncryptedField` | Writes encrypted values through an edit method, for lines that have one. |
