@@ -1,100 +1,132 @@
-# Builds the X++ models and creates deployable packages.
-#   Pull request or push to main: build and keep the packages as a workflow artifact for 14 days.
-#   Tag v<major>.<minor>.<build> (for example v1.2.0): build version <major>.<minor>.<build>.<run number>
-#   and publish the packages as a GitHub release.
-# Setup (secrets, NuGet packages from LCS) is in docs/build-and-release.md.
-name: Build
+# Shared build used by the three pipelines build-ga.yml, build-ga-1.yml and build-ga-2.yml.
+#
+# Picks the F&O version from Microsoft's published release schedule (build/Resolve-FnoVersions.ps1):
+# offset 0 is the newest generally available version, 1 the one before it, 2 the one before that.
+# Compiles the models against that version and creates the deployable packages.
+# On a push to main it also publishes a GitHub release for that F&O version:
+#   tag v<major>.<minor>.<build>.<commit count>-fo<F&O version>, for example v1.0.0.42-fo10.0.49.
+# Setup and details: docs/build-and-release.md.
+name: Build (shared)
 
 on:
-  push:
-    branches: [main]
-    tags: ['v*']
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
-
-permissions:
-  contents: write
-
-concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_call:
+    inputs:
+      ga-offset:
+        description: 0 = newest GA version, 1 = the one before, 2 = the one before that
+        type: number
+        required: true
 
 jobs:
   build:
+    name: build
     runs-on: windows-2022
-    timeout-minutes: 90
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    outputs:
+      fno: ${{ steps.fno.outputs.fno }}
+      version: ${{ steps.version.outputs.version }}
     env:
       NUGET_PATH: ${{ github.workspace }}\out\nuget
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the commit count is the model version's revision.
+          fetch-depth: 0
+          # The build runs a third-party PowerShell module; keep the repository token out of reach.
+          persist-credentials: false
 
-      - name: Version
+      - name: F&O version
+        id: fno
+        shell: pwsh
+        run: ./build/Resolve-FnoVersions.ps1 -Offset ${{ inputs.ga-offset }}
+
+      # Same number in all three pipelines for the same commit.
+      - name: Model version
         id: version
         shell: pwsh
         run: |
-          $ref = '${{ github.ref }}'
-          if ($ref -match '^refs/tags/v(\d+)\.(\d+)\.(\d+)$') {
-            $version = "$($Matches[1]).$($Matches[2]).$($Matches[3]).${{ github.run_number }}"
-            $release = 'true'
-          } elseif ($ref -like 'refs/tags/*') {
-            throw "Tag '$ref' must look like v1.2.0."
-          } else {
-            [xml] $d = Get-Content -Raw 'Metadata/OlkInc-D365FO-EDS/Descriptor/OlkInc-D365FO-EDS.xml'
-            $m = $d.AxModelInfo
-            $version = "$($m.VersionMajor).$($m.VersionMinor).$($m.VersionBuild).${{ github.run_number }}"
-            $release = 'false'
-          }
+          [xml] $d = Get-Content -Raw 'Metadata/OlkInc-D365FO-EDS/Descriptor/OlkInc-D365FO-EDS.xml'
+          $m = $d.AxModelInfo
+          $revision = (git rev-list --count HEAD).Trim()
+          $version = "$($m.VersionMajor).$($m.VersionMinor).$($m.VersionBuild).$revision"
           "version=$version" >> $env:GITHUB_OUTPUT
-          "release=$release" >> $env:GITHUB_OUTPUT
-          Write-Host "Version $version, release $release"
+          Write-Host "Model version $version"
 
-      # The Microsoft packages are several GB; restore them from the feed once per packages.config.
+      # The Microsoft packages are several GB; download them once per F&O version.
       - name: Cache X++ build packages
         uses: actions/cache@v4
         with:
           path: out/nuget
-          key: d365-nuget-${{ hashFiles('build/packages.config') }}
+          key: d365-nuget-${{ steps.fno.outputs.fno }}
 
       - uses: microsoft/setup-msbuild@v2
 
       - name: Build models and deployable packages
         shell: pwsh
         env:
+          # Only used if the community storage does not have this version.
           D365_NUGET_FEED_URL: ${{ secrets.D365_NUGET_FEED_URL }}
           D365_NUGET_FEED_USER: ${{ secrets.D365_NUGET_FEED_USER }}
           D365_NUGET_FEED_TOKEN: ${{ secrets.D365_NUGET_FEED_TOKEN }}
-        run: ./build/Build-EDS.ps1 -Version '${{ steps.version.outputs.version }}' -NuGetPath $env:NUGET_PATH
+        run: >
+          ./build/Build-EDS.ps1
+          -Version '${{ steps.version.outputs.version }}'
+          -FnoVersion '${{ steps.fno.outputs.fno }}'
+          -VersionStrategy GA
+          -PackageSuffix '-FO${{ steps.fno.outputs.fno }}'
+          -NuGetPath $env:NUGET_PATH
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: OlkInc-D365FO-EDS-${{ steps.version.outputs.version }}
+          name: packages-FO${{ steps.fno.outputs.fno }}
           path: out/release/*.zip
           retention-days: 14
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages-FO${{ needs.build.outputs.fno }}
+          path: out/release
 
       - name: Publish release
-        if: steps.version.outputs.release == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $v = '${{ steps.version.outputs.version }}'
-          $notes = @"
-          Model version $v, built from ${{ github.sha }}.
-
-          - **OlkInc-D365FO-EDS-$v.zip**: the model. Deploy to any environment, including production.
-          - **OlkInc-D365FO-EDS-Test-$v.zip**: the model and its tests. Development and test environments only.
-
-          Installation: see docs/build-and-release.md.
-          "@
-          $assets = Get-ChildItem out/release/*.zip | ForEach-Object FullName
-          $tag = '${{ github.ref_name }}'
-          # A release created in the GitHub UI already exists when this runs: add the files to it.
-          gh release view $tag *> $null
+          $v = '${{ needs.build.outputs.version }}'
+          $fno = '${{ needs.build.outputs.fno }}'
+          $repo = '${{ github.repository }}'
+          $tag = "v$v-fo$fno"
+          $assets = @(Get-ChildItem out/release/*.zip | Sort-Object Name | ForEach-Object FullName)
+          $notes = @(
+            "Model version $v built against Dynamics 365 finance and operations $fno (generally available), from commit ${{ github.sha }}.",
+            '',
+            "| File | Install on |",
+            "| --- | --- |",
+            "| ``OlkInc-D365FO-EDS-$v-FO$fno.zip`` | Any environment on $fno or later, including production |",
+            "| ``OlkInc-D365FO-EDS-Test-$v-FO$fno.zip`` | Development and test environments on $fno or later (model and tests) |",
+            '',
+            'The same model version is also released for the other current GA versions. Pick the release for the oldest F&O version among the environments you install on.',
+            '',
+            'Installation: see docs/build-and-release.md in the repository.'
+          ) -join "`n"
+          $notesFile = Join-Path $env:RUNNER_TEMP 'notes.md'
+          Set-Content $notesFile $notes
+          # Only the release for the newest GA version is marked as the repository's latest release.
+          $latest = if (${{ inputs.ga-offset }} -eq 0) { '--latest' } else { '--latest=false' }
+          gh release view $tag --repo $repo *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag @assets --clobber
+            gh release upload $tag @assets --clobber --repo $repo
           } else {
-            gh release create $tag @assets --title "OlkInc-D365FO-EDS $v" --notes $notes --verify-tag
+            gh release create $tag @assets --repo $repo --target '${{ github.sha }}' --title "OlkInc-D365FO-EDS $v for F&O $fno" --notes-file $notesFile $latest
           }
           if ($LASTEXITCODE) { throw "Publishing the release failed ($LASTEXITCODE)." }
