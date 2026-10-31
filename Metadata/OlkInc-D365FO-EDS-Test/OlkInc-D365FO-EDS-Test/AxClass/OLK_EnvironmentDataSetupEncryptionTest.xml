@@ -270,7 +270,7 @@ class OLK_EnvironmentDataSetupEncryptionTest extends SysTestCase
         this.assertEquals('', trans.Value, 'The value of an encrypted line is stored in plain text.');
         this.assertTrue(trans.CipherText != '', 'The value of an encrypted line was not encrypted.');
         this.assertFalse(strScan(trans.CipherText, OLK_EnvironmentDataSetupEncryptionTest::Secret, 1, strLen(trans.CipherText)) > 0, 'The cipher text contains the value.');
-        this.assertEquals(OLK_EnvironmentDataSetupTrans::Mask, trans.editValue(false, ''), 'The form does not mask the encrypted value.');
+        this.assertEquals(OLK_EnvironmentDataSetupCrypto::ValueMask, trans.editValue(false, ''), 'The form does not mask the encrypted value.');
     }
 
 ]]></Source>

@@ -6,7 +6,7 @@
 	<DirectAccessPermissions />
 	<EntryPoints>
 		<AxSecurityEntryPointReference>
-			<Name>OLK_EdsKeyService.getEnrolment</Name>
+			<Name>OLK_EdsKeyServiceGetEnrolment</Name>
 			<Grant>
 				<Invoke>Allow</Invoke>
 			</Grant>

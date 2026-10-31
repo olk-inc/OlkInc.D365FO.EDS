@@ -23,6 +23,7 @@ public static class OLK_EnvironmentDataSetupCrypto
     public const str FormatVersion      = 'OLK1';
     public const str PartSeparator      = ':';
     public const str PrivateKeyPrefix   = '<RSAKeyValue>';
+    public const str ValueMask          = '********';
 }
 ]]></Declaration>
 		<Methods>
@@ -315,7 +316,8 @@ public static class OLK_EnvironmentDataSetupCrypto
 
         binData.setData(_blob);
 
-        return binData.base64Encode();
+        // base64Encode adds a line break every 72 characters; enrolment.txt has one value per line.
+        return strRem(binData.base64Encode(), "\r\n");
     }
 
 ]]></Source>
@@ -328,9 +330,7 @@ public static class OLK_EnvironmentDataSetupCrypto
     /// </summary>
     public static OLK_EdsEncryptedBlob base64ToBlob(str _text)
     {
-        BinData binData = new BinData();
-
-        return binData.base64Decode(_text);
+        return BinData::loadFromBase64(_text);
     }
 
 ]]></Source>
@@ -404,4 +404,4 @@ public static class OLK_EnvironmentDataSetupCrypto
 			</Method>
 		</Methods>
 	</SourceCode>
-</AxClass>
+</AxClass>

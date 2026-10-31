@@ -23,7 +23,7 @@ public class OLK_EnvironmentDataSetupEnrolment
     OLK_EdsHostName         hostName;
     OLK_EdsPublicKey        publicKey;
     OLK_EdsEncryptedBlob    lockedPrivateKey;
-    OLK_EdsKeyFingerprint   keyFingerprint;
+    OLK_EdsKeyFingerprint   fingerprint;
     utcdatetime             created;
 }
 ]]></Declaration>
@@ -85,10 +85,10 @@ public class OLK_EnvironmentDataSetupEnrolment
 			<Method>
 				<Name>parmFingerprint</Name>
 				<Source><![CDATA[
-    public OLK_EdsKeyFingerprint parmFingerprint(OLK_EdsKeyFingerprint _fingerprint = keyFingerprint)
+    public OLK_EdsKeyFingerprint parmFingerprint(OLK_EdsKeyFingerprint _fingerprint = fingerprint)
     {
-        keyFingerprint = _fingerprint;
-        return keyFingerprint;
+        fingerprint = _fingerprint;
+        return fingerprint;
     }
 
 ]]></Source>
@@ -114,7 +114,7 @@ public class OLK_EnvironmentDataSetupEnrolment
     {
         return OLK_EnvironmentDataSetupEnrolment::Header + '\n'
             + OLK_EnvironmentDataSetupEnrolment::KeyHost        + '=' + hostName + '\n'
-            + OLK_EnvironmentDataSetupEnrolment::KeyFingerprint + '=' + keyFingerprint + '\n'
+            + OLK_EnvironmentDataSetupEnrolment::KeyFingerprint + '=' + fingerprint + '\n'
             + OLK_EnvironmentDataSetupEnrolment::KeyCreated     + '=' + DateTimeUtil::toStr(created) + '\n'
             + OLK_EnvironmentDataSetupEnrolment::KeyPublicKey   + '=' + publicKey + '\n'
             + OLK_EnvironmentDataSetupEnrolment::KeyLockedKey   + '=' + OLK_EnvironmentDataSetupCrypto::blobToBase64(lockedPrivateKey) + '\n';

@@ -7,7 +7,7 @@
 	<ServiceOperations>
 		<AxServiceOperation>
 			<Name>getEnrolment</Name>
-			<MethodName>getEnrolment</MethodName>
+			<Method>getEnrolment</Method>
 		</AxServiceOperation>
 	</ServiceOperations>
 </AxService>

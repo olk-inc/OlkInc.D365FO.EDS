@@ -351,21 +351,23 @@ public static class OLK_EnvironmentDataSetupKeyManager
     /// <exception>An error with the reason if the request fails.</exception>
     private static str post(str _url, str _body, str _contentType, str _bearerToken)
     {
-        System.Net.WebClient    client = new System.Net.WebClient();
-        str                     response;
+        System.Net.WebClient            webClient = new System.Net.WebClient();
+        System.Net.WebHeaderCollection  headers;
+        str                             response;
 
         try
         {
-            client.Encoding = System.Text.Encoding::UTF8;
-            client.Headers.Add('Content-Type', _contentType);
+            webClient.Encoding = System.Text.Encoding::UTF8;
+            headers = webClient.Headers;
+            headers.Add('Content-Type', _contentType);
 
             if (_bearerToken)
             {
-                client.Headers.Add('Authorization', 'Bearer ' + _bearerToken);
+                headers.Add('Authorization', 'Bearer ' + _bearerToken);
             }
 
-            response = client.UploadString(_url, 'POST', _body);
-            client.Dispose();
+            response = webClient.UploadString(_url, 'POST', _body);
+            webClient.Dispose();
         }
         catch (Exception::CLRError)
         {
