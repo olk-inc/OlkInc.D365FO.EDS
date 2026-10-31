@@ -168,7 +168,14 @@ if (-not $msbuild) {
 if (-not $msbuild) { throw 'MSBuild was not found. Install Visual Studio 2022 or Build Tools 2022.' }
 
 $referenceFolders = @($referencePackages | ForEach-Object { Join-Path $_.Path 'ref\net40' }) + @($metadata, $bin)
-# MSBuild splits /p: values at ';', so the list separator is passed escaped (%3B); MSBuild unescapes it.
+# The reference folders are a ';' list, which a /p: switch cannot carry (MSBuild splits the switch there, and
+# an escaped %3B stays one path for the compiler). They go into a props file that the projects import.
+$referenceProps = Join-Path $WorkPath 'references.props'
+$propsXml = New-Object System.Xml.XmlDocument
+$root = $propsXml.AppendChild($propsXml.CreateElement('Project', 'http://schemas.microsoft.com/developer/msbuild/2003'))
+$group = $root.AppendChild($propsXml.CreateElement('PropertyGroup', $root.NamespaceURI))
+$group.AppendChild($propsXml.CreateElement('ReferenceFolder', $root.NamespaceURI)).InnerText = $referenceFolders -join ';'
+$propsXml.Save($referenceProps)
 $models = @($mainModel)
 if ($hasAppSuite) { $models += $testModel } else { Write-Warning "No ApplicationSuite package (or -SkipTestModel): $testModel is not built." }
 
@@ -207,7 +214,7 @@ foreach ($model in $models) {
         "/p:BuildTasksDirectory=$compilerPath\DevAlm" `
         "/p:MetadataDirectory=$metadata" `
         "/p:FrameworkDirectory=$compilerPath" `
-        "/p:ReferenceFolder=$($referenceFolders -join '%3B')" `
+        "/p:EdsReferenceProps=$referenceProps" `
         "/p:ReferencePath=$compilerPath" `
         "/p:OutputDirectory=$bin"
     $exit = $LASTEXITCODE
