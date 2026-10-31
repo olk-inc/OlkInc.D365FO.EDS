@@ -109,8 +109,10 @@ function Restore-FromFscps {
     New-Item -ItemType Directory -Force -Path $downloads | Out-Null
     $list = foreach ($type in $types) {
         Write-Host "Downloading $type for $FnoVersion ($VersionStrategy). The application packages are large; this takes a while."
-        $r = Get-FSCPSNuget -KnownVersion $FnoVersion -KnownType $VersionStrategy -Type $type -Path $downloads
-        if (-not $r) { throw "fscps.tools could not download $type for $FnoVersion." }
+        # Get-FSCPSNuget also passes on the download's own output (the file); keep only its result hashtable.
+        $r = @(Get-FSCPSNuget -KnownVersion $FnoVersion -KnownType $VersionStrategy -Type $type -Path $downloads) |
+            Where-Object { $_ -is [hashtable] -and $_.ContainsKey('Package') } | Select-Object -Last 1
+        if (-not $r -or -not (Test-Path (Join-Path $r.Path $r.Package))) { throw "fscps.tools could not download $type for $FnoVersion." }
         if ($r.Package -notmatch '^(?<id>Microsoft\.Dynamics\.AX\..+?)\.(?<v>\d+\.\d+\.\d+\.\d+)\.nupkg$') { throw "Unexpected package name $($r.Package)." }
         $target = Join-Path $NuGetPath "$($Matches.id).$($Matches.v)"
         if (Test-Path $target) { Remove-Item $target -Recurse -Force }
