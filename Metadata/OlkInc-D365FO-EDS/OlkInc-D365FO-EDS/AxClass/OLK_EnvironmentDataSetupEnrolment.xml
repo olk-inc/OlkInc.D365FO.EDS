@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupEnrolment</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// The key of one environment as it is sent to the master environment: the host name of the environment, its public key,
+/// its locked private key and the fingerprint of the public key.
+/// </summary>
+/// <remarks>
+/// The same text is returned by the key service and stored as <c>enrolment.txt</c> in the enrolment ZIP file. The locked
+/// private key can be unlocked only by the environment that created it, so the text can be stored and sent like a public key.
+/// </remarks>
+public class OLK_EnvironmentDataSetupEnrolment
+{
+    public const str Header         = 'OLK-EDS-ENROLMENT 1';
+    public const str KeyHost        = 'Host';
+    public const str KeyFingerprint = 'Fingerprint';
+    public const str KeyCreated     = 'Created';
+    public const str KeyPublicKey   = 'PublicKey';
+    public const str KeyLockedKey   = 'LockedPrivateKey';
+
+    OLK_EdsHostName         hostName;
+    OLK_EdsPublicKey        publicKey;
+    OLK_EdsEncryptedBlob    lockedPrivateKey;
+    OLK_EdsKeyFingerprint   keyFingerprint;
+    utcdatetime             created;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>newKey</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates an enrolment from a key of the current environment.
+    /// </summary>
+    public static OLK_EnvironmentDataSetupEnrolment newKey(OLK_EdsHostName _hostName, OLK_EdsPublicKey _publicKey, OLK_EdsEncryptedBlob _lockedPrivateKey, utcdatetime _created)
+    {
+        OLK_EnvironmentDataSetupEnrolment enrolment = new OLK_EnvironmentDataSetupEnrolment();
+
+        enrolment.parmHostName(_hostName);
+        enrolment.parmPublicKey(_publicKey);
+        enrolment.parmLockedPrivateKey(_lockedPrivateKey);
+        enrolment.parmFingerprint(OLK_EnvironmentDataSetupCrypto::fingerprint(_publicKey));
+        enrolment.parmCreated(_created);
+
+        return enrolment;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmHostName</Name>
+				<Source><![CDATA[
+    public OLK_EdsHostName parmHostName(OLK_EdsHostName _hostName = hostName)
+    {
+        hostName = _hostName;
+        return hostName;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmPublicKey</Name>
+				<Source><![CDATA[
+    public OLK_EdsPublicKey parmPublicKey(OLK_EdsPublicKey _publicKey = publicKey)
+    {
+        publicKey = _publicKey;
+        return publicKey;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmLockedPrivateKey</Name>
+				<Source><![CDATA[
+    public OLK_EdsEncryptedBlob parmLockedPrivateKey(OLK_EdsEncryptedBlob _lockedPrivateKey = lockedPrivateKey)
+    {
+        lockedPrivateKey = _lockedPrivateKey;
+        return lockedPrivateKey;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmFingerprint</Name>
+				<Source><![CDATA[
+    public OLK_EdsKeyFingerprint parmFingerprint(OLK_EdsKeyFingerprint _fingerprint = keyFingerprint)
+    {
+        keyFingerprint = _fingerprint;
+        return keyFingerprint;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmCreated</Name>
+				<Source><![CDATA[
+    public utcdatetime parmCreated(utcdatetime _created = created)
+    {
+        created = _created;
+        return created;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>toText</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The enrolment as text, one <c>name=value</c> per line.
+    /// </summary>
+    public str toText()
+    {
+        return OLK_EnvironmentDataSetupEnrolment::Header + '\n'
+            + OLK_EnvironmentDataSetupEnrolment::KeyHost        + '=' + hostName + '\n'
+            + OLK_EnvironmentDataSetupEnrolment::KeyFingerprint + '=' + keyFingerprint + '\n'
+            + OLK_EnvironmentDataSetupEnrolment::KeyCreated     + '=' + DateTimeUtil::toStr(created) + '\n'
+            + OLK_EnvironmentDataSetupEnrolment::KeyPublicKey   + '=' + publicKey + '\n'
+            + OLK_EnvironmentDataSetupEnrolment::KeyLockedKey   + '=' + OLK_EnvironmentDataSetupCrypto::blobToBase64(lockedPrivateKey) + '\n';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>fromText</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Reads an enrolment from text made by <c>toText</c>, and checks that the fingerprint matches the public key.
+    /// </summary>
+    /// <param name = "_text">The text.</param>
+    /// <returns>The enrolment.</returns>
+    public static OLK_EnvironmentDataSetupEnrolment fromText(str _text)
+    {
+        OLK_EnvironmentDataSetupEnrolment   enrolment = new OLK_EnvironmentDataSetupEnrolment();
+        ListEnumerator                      lines = strSplit(strRem(_text, '\r'), '\n').getEnumerator();
+        boolean                             headerFound;
+
+        while (lines.moveNext())
+        {
+            str     line = lines.current();
+            int     pos  = strScan(line, '=', 1, strLen(line));
+            str     name;
+            str     value;
+
+            if (line == OLK_EnvironmentDataSetupEnrolment::Header)
+            {
+                headerFound = true;
+                continue;
+            }
+
+            if (pos <= 1)
+            {
+                continue;
+            }
+
+            name  = subStr(line, 1, pos - 1);
+            value = subStr(line, pos + 1, strLen(line) - pos);
+
+            switch (name)
+            {
+                case OLK_EnvironmentDataSetupEnrolment::KeyHost:
+                    enrolment.parmHostName(value);
+                    break;
+
+                case OLK_EnvironmentDataSetupEnrolment::KeyFingerprint:
+                    enrolment.parmFingerprint(value);
+                    break;
+
+                case OLK_EnvironmentDataSetupEnrolment::KeyCreated:
+                    enrolment.parmCreated(DateTimeUtil::parse(value));
+                    break;
+
+                case OLK_EnvironmentDataSetupEnrolment::KeyPublicKey:
+                    enrolment.parmPublicKey(value);
+                    break;
+
+                case OLK_EnvironmentDataSetupEnrolment::KeyLockedKey:
+                    enrolment.parmLockedPrivateKey(OLK_EnvironmentDataSetupCrypto::base64ToBlob(value));
+                    break;
+            }
+        }
+
+        if (!headerFound || !enrolment.parmHostName() || !enrolment.parmPublicKey() || !conLen(enrolment.parmLockedPrivateKey()))
+        {
+            throw error("@OLK_EDSLabel:EnrolmentInvalid");
+        }
+
+        if (OLK_EnvironmentDataSetupCrypto::fingerprint(enrolment.parmPublicKey()) != enrolment.parmFingerprint())
+        {
+            throw error("@OLK_EDSLabel:EnrolmentFingerprintMismatch");
+        }
+
+        return enrolment;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>toTransportText</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The enrolment as one URL safe base64 string, so the JSON response of the key service needs no escaping.
+    /// </summary>
+    public str toTransportText()
+    {
+        str text = System.Convert::ToBase64String(OLK_EnvironmentDataSetupCrypto::utf8Bytes(this.toText()));
+
+        text = strReplace(text, '+', '-');
+        text = strReplace(text, '/', '_');
+
+        return strRem(text, '=');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>fromTransportText</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Reads an enrolment from the text returned by the key service.
+    /// </summary>
+    public static OLK_EnvironmentDataSetupEnrolment fromTransportText(str _text)
+    {
+        str text = strRem(strRem(strLRTrim(_text), '"'), '\\');
+
+        text = strReplace(text, '-', '+');
+        text = strReplace(text, '_', '/');
+
+        while (strLen(text) mod 4)
+        {
+            text += '=';
+        }
+
+        try
+        {
+            text = System.Text.Encoding::UTF8.GetString(System.Convert::FromBase64String(text));
+        }
+        catch (Exception::CLRError)
+        {
+            throw error("@OLK_EDSLabel:EnrolmentInvalid");
+        }
+
+        return OLK_EnvironmentDataSetupEnrolment::fromText(text);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

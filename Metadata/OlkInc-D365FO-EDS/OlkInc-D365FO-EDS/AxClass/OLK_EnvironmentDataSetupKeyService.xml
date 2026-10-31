@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupKeyService</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Custom service that returns the key of this environment to the master environment.
+/// </summary>
+/// <remarks>
+/// Exposed as <c>/api/services/OLK_EdsServices/OLK_EdsKeyService/getEnrolment</c>. The caller needs a Microsoft Entra ID token
+/// for this environment, from an application registered in <b>Microsoft Entra ID applications</b> with a user that has the role
+/// <c>OLK_EdsKeyService</c>. The response holds the public key and the locked private key; the locked key is useless outside this
+/// environment, so the response is safe to store in the master.
+/// </remarks>
+public class OLK_EnvironmentDataSetupKeyService
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>getEnrolment</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the key of this environment, creating it the first time.
+    /// </summary>
+    /// <returns>The enrolment as URL safe base64 text.</returns>
+    public str getEnrolment()
+    {
+        return OLK_EnvironmentDataSetupKeyManager::localEnrolment().toTransportText();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

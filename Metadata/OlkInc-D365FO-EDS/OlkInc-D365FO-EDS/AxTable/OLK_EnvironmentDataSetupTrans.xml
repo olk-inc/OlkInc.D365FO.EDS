@@ -5,6 +5,7 @@
 		<Declaration><![CDATA[
 public class OLK_EnvironmentDataSetupTrans extends common
 {
+    public const str Mask = '********';
 }
 ]]></Declaration>
 		<Methods>
@@ -142,6 +143,7 @@ public class OLK_EnvironmentDataSetupTrans extends common
             }
             else if (tableId != this.RefTableId)
             {
+                this.clearCipherText();
                 this.RefTableId          = tableId;
                 this.FieldId             = 0;
                 this.EncryptedMethodName = '';
@@ -169,6 +171,11 @@ public class OLK_EnvironmentDataSetupTrans extends common
         {
             if (this.EncryptedField)
             {
+                if (_name != this.EncryptedMethodName)
+                {
+                    this.clearCipherText();
+                }
+
                 this.FieldId             = 0;
                 this.EncryptedMethodName = _name;
             }
@@ -196,7 +203,8 @@ public class OLK_EnvironmentDataSetupTrans extends common
 				<Name>editValue</Name>
 				<Source><![CDATA[
     /// <summary>
-    /// Gets or sets the value written to the field; values of encrypted fields are masked.
+    /// Gets or sets the value written to the field. Values of encrypted fields are encrypted with the key of the line's
+    /// environment as they are entered, only the cipher text is stored, and the form shows a mask.
     /// </summary>
     /// <param name = "_set">true when the value is set.</param>
     /// <param name = "_value">The value.</param>
@@ -205,15 +213,95 @@ public class OLK_EnvironmentDataSetupTrans extends common
     {
         if (_set)
         {
-            this.Value = this.normalizeValue(_value);
+            if (this.EncryptedField)
+            {
+                this.setEncryptedValue(_value);
+            }
+            else
+            {
+                this.Value = this.normalizeValue(_value);
+            }
         }
 
-        if (this.EncryptedField && this.Value)
+        if (this.EncryptedField && (this.Value || this.CipherText))
         {
-            return '********';
+            return OLK_EnvironmentDataSetupTrans::Mask;
         }
 
         return this.Value;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>setEncryptedValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Encrypts a value with the public key of the line's environment and stores only the cipher text.
+    /// </summary>
+    /// <param name = "_value">The value; the mask leaves the stored value as it is, an empty value clears it.</param>
+    public void setEncryptedValue(str _value)
+    {
+        OLK_EnvironmentDataSetupTable environment;
+
+        if (_value == OLK_EnvironmentDataSetupTrans::Mask)
+        {
+            return;
+        }
+
+        this.Value = '';
+
+        if (!_value)
+        {
+            this.CipherText = '';
+            return;
+        }
+
+        environment = OLK_EnvironmentDataSetupTable::find(this.EnvironmentId);
+
+        if (!environment.PublicKey)
+        {
+            throw error(strFmt("@OLK_EDSLabel:EnvironmentNotEnrolled", this.EnvironmentId));
+        }
+
+        this.CipherText = OLK_EnvironmentDataSetupCrypto::encrypt(environment.PublicKey, _value, this.encryptionBinding());
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>encryptionBinding</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The text an encrypted value is bound to: environment, company, table, edit method and record. A cipher text cannot be
+    /// decrypted for a line where any of these differ.
+    /// </summary>
+    public str encryptionBinding()
+    {
+        return strLwr(strFmt('%1|%2|%3|%4|%5',
+            this.EnvironmentId,
+            this.RefDataAreaId,
+            this.RefTableId ? tableId2Name(this.RefTableId) : '',
+            this.EncryptedMethodName,
+            int642Str(this.RefRecId)));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>clearCipherText</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Clears the encrypted value when the line is moved to another environment, company, table, method or record, because it
+    /// could not be decrypted there.
+    /// </summary>
+    private void clearCipherText()
+    {
+        if (this.CipherText)
+        {
+            this.CipherText = '';
+            warning("@OLK_EDSLabel:EncryptedValueCleared");
+        }
     }
 
 ]]></Source>
@@ -365,12 +453,21 @@ public class OLK_EnvironmentDataSetupTrans extends common
             case fieldNum(OLK_EnvironmentDataSetupTrans, EncryptedField):
                 this.FieldId             = 0;
                 this.EncryptedMethodName = '';
+                this.Value               = '';
+                this.clearCipherText();
                 break;
 
             case fieldNum(OLK_EnvironmentDataSetupTrans, RefTableId):
                 this.FieldId             = 0;
                 this.EncryptedMethodName = '';
                 this.initRefDataAreaId();
+                this.clearCipherText();
+                break;
+
+            case fieldNum(OLK_EnvironmentDataSetupTrans, EnvironmentId):
+            case fieldNum(OLK_EnvironmentDataSetupTrans, RefDataAreaId):
+            case fieldNum(OLK_EnvironmentDataSetupTrans, RefRecId):
+                this.clearCipherText();
                 break;
         }
     }
@@ -408,6 +505,12 @@ public class OLK_EnvironmentDataSetupTrans extends common
         if (ret && dictTable.dataPrCompany() && !this.RefDataAreaId)
         {
             ret = checkFailed("@OLK_EDSLabel:CompanyEmpty");
+        }
+
+        if (ret && this.EncryptedField && this.Value && this.Value != this.orig().Value)
+        {
+            // Encrypted values are stored as cipher text only; a plain value can arrive only by import or code.
+            ret = checkFailed("@OLK_EDSLabel:EncryptedValueNotEncrypted");
         }
 
         if (ret && !this.referencedRecordExists())
@@ -769,6 +872,13 @@ public class OLK_EnvironmentDataSetupTrans extends common
 			i:type="AxTableFieldString">
 			<Name>EncryptedMethodName</Name>
 			<ExtendedDataType>OLK_EdsEncryptedMethodName</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>CipherText</Name>
+			<AllowEdit>No</AllowEdit>
+			<ExtendedDataType>OLK_EdsCipherText</ExtendedDataType>
+			<Visible>No</Visible>
 		</AxTableField>
 	</Fields>
 	<FullTextIndexes />

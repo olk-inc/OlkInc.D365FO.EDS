@@ -91,7 +91,122 @@ public class OLK_EnvironmentDataSetupTable extends common
             }
         }
 
+        if (ret)
+        {
+            ret = this.validateEnvironmentUrl();
+        }
+
+        if (ret && this.ClientId && !this.TenantId)
+        {
+            ret = checkFailed(strFmt("@OLK_EDSLabel:ClientIdEmpty", this.EnvironmentId));
+        }
+
         return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateEnvironmentUrl</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The URL is required, must be a valid URL, and no other environment may have the same host name.
+    /// </summary>
+    private boolean validateEnvironmentUrl()
+    {
+        OLK_EnvironmentDataSetupTable   other;
+        OLK_EdsHostName                 host = OLK_EnvironmentDataSetupKeyManager::normalizeHost(this.EnvironmentUrl);
+
+        if (!this.EnvironmentUrl)
+        {
+            return checkFailed(strFmt("@OLK_EDSLabel:EnvironmentUrlEmpty", this.EnvironmentId));
+        }
+
+        if (!host)
+        {
+            return checkFailed(strFmt("@OLK_EDSLabel:EnvironmentUrlInvalid", this.EnvironmentUrl));
+        }
+
+        while select EnvironmentId, EnvironmentUrl from other
+            where other.RecId          != this.RecId
+               && other.EnvironmentUrl != ''
+        {
+            if (OLK_EnvironmentDataSetupKeyManager::normalizeHost(other.EnvironmentUrl) == host)
+            {
+                return checkFailed(strFmt("@OLK_EDSLabel:EnvironmentUrlUsed", host, other.EnvironmentId));
+            }
+        }
+
+        if (this.orig().EnvironmentUrl
+            && this.KeyFingerprint
+            && OLK_EnvironmentDataSetupKeyManager::normalizeHost(this.orig().EnvironmentUrl) != host)
+        {
+            warning(strFmt("@OLK_EDSLabel:EnvironmentUrlChangedWithKey", this.EnvironmentId));
+        }
+
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>editClientSecret</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Sets the client secret used to call the key service of this environment. It is stored with the platform encryption of
+    /// the environment where it is entered (normally the master) and is never shown.
+    /// </summary>
+    /// <param name = "_set">true when the value is set.</param>
+    /// <param name = "_secret">The client secret.</param>
+    /// <returns>A mask when a secret is stored.</returns>
+    public edit OLK_EdsClientSecret editClientSecret(boolean _set, OLK_EdsClientSecret _secret)
+    {
+        if (_set)
+        {
+            Global::editEncryptedField(this, _secret, fieldNum(OLK_EnvironmentDataSetupTable, ClientSecret), true);
+        }
+
+        return conLen(this.ClientSecret) ? '********' : '';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>clientSecret</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The decrypted client secret, for the token request.
+    /// </summary>
+    public str clientSecret()
+    {
+        return conLen(this.ClientSecret)
+            ? Global::editEncryptedField(this, '', fieldNum(OLK_EnvironmentDataSetupTable, ClientSecret), false)
+            : '';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>keyStatus</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Whether the environment has a key and, when the record describes the current environment, whether it can be unlocked here.
+    /// </summary>
+    public display Name keyStatus()
+    {
+        if (!this.KeyFingerprint)
+        {
+            return "@OLK_EDSLabel:KeyStatusNone";
+        }
+
+        if (OLK_EnvironmentDataSetupKeyManager::isCurrentEnvironment(this))
+        {
+            return OLK_EnvironmentDataSetupKeyManager::canUnlock(this.PublicKey, this.LockedPrivateKey)
+                ? "@OLK_EDSLabel:KeyStatusUsable"
+                : "@OLK_EDSLabel:KeyStatusNotUnlocked";
+        }
+
+        return "@OLK_EDSLabel:KeyStatusEnrolled";
     }
 
 ]]></Source>
@@ -161,6 +276,27 @@ public class OLK_EnvironmentDataSetupTable extends common
 			</Fields>
 		</AxTableFieldGroup>
 		<AxTableFieldGroup>
+			<Name>Encryption</Name>
+			<Label>@OLK_EDSLabel:Encryption</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentUrl</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>ClientId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>TenantId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>KeyFingerprint</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>KeyEnrolledDateTime</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
 			<Name>Overview</Name>
 			<Label>@OLK_EDSLabel:Overview</Label>
 			<Fields>
@@ -172,6 +308,9 @@ public class OLK_EnvironmentDataSetupTable extends common
 				</AxTableFieldGroupField>
 				<AxTableFieldGroupField>
 					<DataField>MasterEnvironment</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>EnvironmentUrl</DataField>
 				</AxTableFieldGroupField>
 			</Fields>
 		</AxTableFieldGroup>
@@ -192,6 +331,52 @@ public class OLK_EnvironmentDataSetupTable extends common
 			i:type="AxTableFieldEnum">
 			<Name>MasterEnvironment</Name>
 			<ExtendedDataType>OLK_EdsMasterEnvironment</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>EnvironmentUrl</Name>
+			<ExtendedDataType>OLK_EdsEnvironmentUrl</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>ClientId</Name>
+			<ExtendedDataType>OLK_EdsClientId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>TenantId</Name>
+			<ExtendedDataType>OLK_EdsTenantId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldContainer">
+			<Name>ClientSecret</Name>
+			<ExtendedDataType>OLK_EdsEncryptedBlob</ExtendedDataType>
+			<Visible>No</Visible>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>PublicKey</Name>
+			<AllowEdit>No</AllowEdit>
+			<ExtendedDataType>OLK_EdsPublicKey</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldContainer">
+			<Name>LockedPrivateKey</Name>
+			<ExtendedDataType>OLK_EdsEncryptedBlob</ExtendedDataType>
+			<Visible>No</Visible>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>KeyFingerprint</Name>
+			<AllowEdit>No</AllowEdit>
+			<ExtendedDataType>OLK_EdsKeyFingerprint</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldUtcDateTime">
+			<Name>KeyEnrolledDateTime</Name>
+			<AllowEdit>No</AllowEdit>
+			<ExtendedDataType>OLK_EdsKeyEnrolledDateTime</ExtendedDataType>
 		</AxTableField>
 	</Fields>
 	<FullTextIndexes />

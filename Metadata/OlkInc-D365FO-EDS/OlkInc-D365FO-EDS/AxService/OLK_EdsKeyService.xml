@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxService xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EdsKeyService</Name>
+	<Class>OLK_EnvironmentDataSetupKeyService</Class>
+	<Description>Returns the encryption key of this environment to the environment data setup master.</Description>
+	<ExternalName>OLK_EdsKeyService</ExternalName>
+	<ServiceOperations>
+		<AxServiceOperation>
+			<Name>getEnrolment</Name>
+			<MethodName>getEnrolment</MethodName>
+		</AxServiceOperation>
+	</ServiceOperations>
+</AxService>

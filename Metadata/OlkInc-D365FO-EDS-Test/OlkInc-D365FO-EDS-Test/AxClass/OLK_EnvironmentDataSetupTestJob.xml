@@ -26,7 +26,8 @@ internal final class OLK_EnvironmentDataSetupTestJob
             classNum(OLK_EnvironmentDataSetupCodeJobTest),
             classNum(OLK_EnvironmentDataSetupDefaultValuesTest),
             classNum(OLK_EnvironmentDataSetupPersonalizationTest),
-            classNum(OLK_EnvironmentDataSetupLogTest)];
+            classNum(OLK_EnvironmentDataSetupLogTest),
+            classNum(OLK_EnvironmentDataSetupEncryptionTest)];
     }
 
 ]]></Source>

@@ -27,6 +27,30 @@ public class OLK_EnvironmentDataSetupTable extends FormRun
 					<DataField>Description</DataField>
 				</AxFormDataSourceField>
 				<AxFormDataSourceField>
+					<DataField>ClientId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>ClientSecret</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>EnvironmentUrl</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>KeyEnrolledDateTime</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>KeyFingerprint</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>LockedPrivateKey</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>PublicKey</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>TenantId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
 					<DataField>EnvironmentId</DataField>
 				</AxFormDataSourceField>
 				<AxFormDataSourceField>
@@ -125,6 +149,61 @@ public class OLK_EnvironmentDataSetupTable extends FormRun
 							</AxFormControl>
 						</Controls>
 					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormButtonGroupControl">
+						<Name>EncryptionGroup</Name>
+						<Caption>@OLK_EDSLabel:Encryption</Caption>
+						<FilterExpression>%1</FilterExpression>
+						<Type>ButtonGroup</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormMenuFunctionButtonControl">
+								<Name>FetchKey</Name>
+								<Type>MenuFunctionButton</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataSource>OLK_EnvironmentDataSetupTable</DataSource>
+								<MenuItemName>OLK_EdsFetchKey</MenuItemName>
+								<MenuItemType>Action</MenuItemType>
+								<NeedsRecord>Yes</NeedsRecord>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormMenuFunctionButtonControl">
+								<Name>ImportEnrolment</Name>
+								<Type>MenuFunctionButton</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataSource>OLK_EnvironmentDataSetupTable</DataSource>
+								<MenuItemName>OLK_EdsImportEnrolment</MenuItemName>
+								<MenuItemType>Action</MenuItemType>
+								<NeedsRecord>Yes</NeedsRecord>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormMenuFunctionButtonControl">
+								<Name>ExportEnrolment</Name>
+								<Type>MenuFunctionButton</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataSource>OLK_EnvironmentDataSetupTable</DataSource>
+								<MenuItemName>OLK_EdsExportEnrolment</MenuItemName>
+								<MenuItemType>Action</MenuItemType>
+								<NeedsRecord>No</NeedsRecord>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormMenuFunctionButtonControl">
+								<Name>EncryptPlainValues</Name>
+								<Type>MenuFunctionButton</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataSource>OLK_EnvironmentDataSetupTable</DataSource>
+								<MenuItemName>OLK_EdsEncryptPlainValues</MenuItemName>
+								<MenuItemType>Action</MenuItemType>
+								<NeedsRecord>Yes</NeedsRecord>
+							</AxFormControl>
+						</Controls>
+					</AxFormControl>
 				</Controls>
 				<DataSource>OLK_EnvironmentDataSetupTable</DataSource>
 			</AxFormControl>
@@ -198,6 +277,73 @@ public class OLK_EnvironmentDataSetupTable extends FormRun
 						<FormControlExtension
 							i:nil="true" />
 						<DataField>MasterEnvironment</DataField>
+						<DataSource>OLK_EnvironmentDataSetupTable</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>OLK_EnvironmentDataSetupTable_EnvironmentUrl</Name>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>EnvironmentUrl</DataField>
+						<DataSource>OLK_EnvironmentDataSetupTable</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>OLK_EnvironmentDataSetupTable_ClientId</Name>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>ClientId</DataField>
+						<DataSource>OLK_EnvironmentDataSetupTable</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>OLK_EnvironmentDataSetupTable_TenantId</Name>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>TenantId</DataField>
+						<DataSource>OLK_EnvironmentDataSetupTable</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>ClientSecret</Name>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataMethod>editClientSecret</DataMethod>
+						<DataSource>OLK_EnvironmentDataSetupTable</DataSource>
+						<Label>@OLK_EDSLabel:ClientSecret</Label>
+						<PasswordStyle>Yes</PasswordStyle>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>KeyStatus</Name>
+						<AllowEdit>No</AllowEdit>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataMethod>keyStatus</DataMethod>
+						<DataSource>OLK_EnvironmentDataSetupTable</DataSource>
+						<Label>@OLK_EDSLabel:KeyStatus</Label>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>OLK_EnvironmentDataSetupTable_KeyFingerprint</Name>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>KeyFingerprint</DataField>
+						<DataSource>OLK_EnvironmentDataSetupTable</DataSource>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormDateTimeControl">
+						<Name>OLK_EnvironmentDataSetupTable_KeyEnrolledDateTime</Name>
+						<Type>DateTime</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<DataField>KeyEnrolledDateTime</DataField>
 						<DataSource>OLK_EnvironmentDataSetupTable</DataSource>
 					</AxFormControl>
 				</Controls>

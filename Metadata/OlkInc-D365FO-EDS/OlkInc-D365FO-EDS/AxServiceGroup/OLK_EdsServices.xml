@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxServiceGroup xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EdsServices</Name>
+	<AutoDeploy>Yes</AutoDeploy>
+	<Description>Environment data setup services.</Description>
+	<Services>
+		<AxServiceGroupService>
+			<Name>OLK_EdsKeyService</Name>
+			<Service>OLK_EdsKeyService</Service>
+		</AxServiceGroupService>
+	</Services>
+</AxServiceGroup>

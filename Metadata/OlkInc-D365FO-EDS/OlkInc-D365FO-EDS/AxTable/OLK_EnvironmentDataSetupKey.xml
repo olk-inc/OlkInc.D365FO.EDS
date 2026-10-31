@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupKey</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// The key of the current environment before the master holds it. One record per host name.
+/// </summary>
+/// <remarks>
+/// The private key is stored locked with the platform encryption of this environment. A database refresh replaces this table;
+/// by then the master holds the key in the environment record, which arrives with the refresh.
+/// </remarks>
+public class OLK_EnvironmentDataSetupKey extends common
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>find</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds the key of a host name.
+    /// </summary>
+    public static OLK_EnvironmentDataSetupKey find(OLK_EdsHostName _hostName, boolean _forUpdate = false)
+    {
+        OLK_EnvironmentDataSetupKey localKey;
+
+        if (_hostName)
+        {
+            localKey.selectForUpdate(_forUpdate);
+
+            select firstonly localKey
+                where localKey.HostName == _hostName;
+        }
+
+        return localKey;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+	<ConfigurationKey>OLK_EdsConfigKey</ConfigurationKey>
+	<DeveloperDocumentation>@OLK_EDSLabel:LocalKeysHelp</DeveloperDocumentation>
+	<Label>@OLK_EDSLabel:LocalKeys</Label>
+	<TitleField1>HostName</TitleField1>
+	<TitleField2>KeyFingerprint</TitleField2>
+	<ClusteredIndex>HostNameIdx</ClusteredIndex>
+	<PrimaryIndex>HostNameIdx</PrimaryIndex>
+	<ReplacementKey>HostNameIdx</ReplacementKey>
+	<SaveDataPerCompany>No</SaveDataPerCompany>
+	<TableGroup>Parameter</TableGroup>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>HostName</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>KeyFingerprint</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>HostName</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>HostName</Name>
+			<ExtendedDataType>OLK_EdsHostName</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>PublicKey</Name>
+			<ExtendedDataType>OLK_EdsPublicKey</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldContainer">
+			<Name>LockedPrivateKey</Name>
+			<ExtendedDataType>OLK_EdsEncryptedBlob</ExtendedDataType>
+			<Visible>No</Visible>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>KeyFingerprint</Name>
+			<ExtendedDataType>OLK_EdsKeyFingerprint</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldUtcDateTime">
+			<Name>KeyCreatedDateTime</Name>
+			<ExtendedDataType>OLK_EdsKeyEnrolledDateTime</ExtendedDataType>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>HostNameIdx</Name>
+			<AlternateKey>Yes</AlternateKey>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>HostName</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<Relations />
+	<StateMachines />
+</AxTable>

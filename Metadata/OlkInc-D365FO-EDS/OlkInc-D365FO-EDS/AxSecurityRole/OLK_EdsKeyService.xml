@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityRole xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EdsKeyService</Name>
+	<Description>@OLK_EDSLabel:KeyServiceRoleHelp</Description>
+	<Label>@OLK_EDSLabel:KeyServiceRole</Label>
+	<DirectAccessPermissions />
+	<Duties>
+		<AxSecurityDutyReference>
+			<Name>OLK_EdsKeyService</Name>
+		</AxSecurityDutyReference>
+	</Duties>
+	<Privileges />
+	<SubRoles />
+</AxSecurityRole>
