@@ -18,7 +18,21 @@ The red numbers in each screenshot match the numbered steps below it.
 6. **Execute environment data setup** runs the setup for the selected environment.
 7. **Master environment** marks the master. Only one environment can be the master.
 
-The **Encryption** group (**Fetch key**, **Import enrolment**, **Export enrolment**, **Encrypt plain values**) and the columns **Environment URL**, **Client ID**, **Tenant ID**, **Client secret**, **Key status**, **Key fingerprint** and **Key enrolled** are not in the screenshot yet; see [Encrypted values for each environment](encryption.md).
+The encryption buttons and columns:
+
+![Environments form with the encryption buttons and columns](images/environments-encryption.png)
+
+1. **Fetch key** gets the selected environment's key from its key service.
+2. **Import enrolment** stores the key from an enrolment ZIP file in the selected record.
+3. **Export enrolment** downloads the enrolment ZIP file of the environment you are in.
+4. **Encrypt plain values** encrypts values that were entered before encryption existed.
+5. **Environment URL** identifies the environment.
+6. **Client ID**, **Tenant ID** and **Client secret** are the application that calls the key service. Optional.
+7. **Key status** shows whether the record has a key and whether it unlocks here.
+8. **Key fingerprint** is what you compare to check that you enrolled the right key.
+9. **Key enrolled** is when the key was stored.
+
+The host name of the environment in the screenshot is replaced by `<this environment>`. See [Encrypted values for each environment](encryption.md).
 
 ## Fields
 

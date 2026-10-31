@@ -93,8 +93,22 @@ Select the sandbox's record and click **Fetch key**.
 
 #### Enrolment file
 
-1. In the sandbox's Environments page (the tab that opened), click **Export enrolment**. The browser downloads `EDS-enrolment-<host>.zip`.
-2. Back in the master, select the sandbox's record, click **Import enrolment** and upload the ZIP file.
+The red numbers in each screenshot match the numbered steps below it.
+
+In the sandbox's Environments page (the tab that opened):
+
+![Export enrolment](images/encryption-export.png)
+
+1. Click **Export enrolment**. No record needs to be selected.
+2. The browser downloads `EDS-enrolment-<host>.zip`, with the dots of the host name replaced by hyphens. The box in the screenshot is added to show the file's content; the browser shows only its own download notification.
+
+Back in the master:
+
+![Import enrolment](images/encryption-import.png)
+
+1. Select the sandbox's record.
+2. Click **Import enrolment**.
+3. Click **Browse** and select the ZIP file. It is uploaded and imported as soon as you select it.
 
 The ZIP file contains:
 
@@ -111,7 +125,14 @@ To check that you enrolled the right key, compare the **Key fingerprint** in the
 
 ## Entering encrypted values
 
-In the master, open [Data setup](data-setup.md) for the sandbox, add a line with **Encrypted field** = Yes and the **Edit method name**, then type the value in **Field value**. It is encrypted as you leave the field; the form shows `********`.
+In the master, open [Data setup](data-setup.md) for the sandbox and add a line with the table and record:
+
+![An encrypted data setup line](images/data-setup-encrypted.png)
+
+1. Set **Encrypted field** to Yes.
+2. Enter the **Edit method name** of the table.
+3. Type the value in **Field value**. It is encrypted as you leave the field, and the form shows `********`.
+4. The grid shows the mask too.
 
 - The sandbox must have a key first, otherwise *Environment UAT has no encryption key* is shown.
 - If you change the line's environment, company, table, edit method or record, the encrypted value is cleared and must be typed again.
@@ -206,5 +227,5 @@ The first call creates the sandbox's key; later calls return the same key.
 | Key pair | RSA 3072, `RSACng` |
 | Value encryption | Random 256 bit key per value. AES-256-CBC with PKCS7, and HMAC-SHA256 over the cipher text and the line binding (encrypt then MAC). The random key is encrypted with RSA-OAEP-SHA256. |
 | Cipher text | `OLK1:<encrypted key>:<IV>:<cipher text>:<MAC>`, each part base64, in `OLK_EnvironmentDataSetupTrans.CipherText`. `Value` stays empty. |
-| Private key at rest | Locked with `Global::editEncryptedField` (platform encryption of the environment), in `OLK_EnvironmentDataSetupTable.LockedPrivateKey` and, before the first refresh, in `OLK_EnvironmentDataSetupKey`. |
+| Private key at rest | Locked with `Global::editEncryptedField` (platform encryption of the environment), in `OLK_EnvironmentDataSetupTable.LockedPrivateKey` and, before the first refresh, in `OLK_EnvironmentDataSetupKey`. The platform's encryption purpose is the same for every table, field and record, so the locked key stays valid when it moves between records and through base64 text. |
 | Classes | `OLK_EnvironmentDataSetupCrypto` (cryptography), `OLK_EnvironmentDataSetupKeyManager` (keys, service call, ZIP files), `OLK_EnvironmentDataSetupEnrolment` (enrolment text), `OLK_EnvironmentDataSetupKeyService` (key service), `OLK_EnvironmentDataSetupKeyAction` (form buttons). |
