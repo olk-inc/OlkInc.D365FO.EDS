@@ -1,0 +1,21 @@
+# Pipeline for the third newest generally available F&O version (see build.yml).
+name: Build for GA - 2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ga:
+    uses: ./.github/workflows/build.yml
+    with:
+      ga-offset: 2
+    secrets: inherit

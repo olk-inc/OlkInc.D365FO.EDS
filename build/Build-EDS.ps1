@@ -4,7 +4,9 @@
     deployable packages that install without a build.
 
 .DESCRIPTION
-    1. Restores the packages in build/packages.config (skipped when they are already in -NuGetPath).
+    1. Gets the Microsoft X++ build packages (skipped when they are already in -NuGetPath), either
+         - from the fscps.tools community storage for -FnoVersion (for example 10.0.49) when it has that version, else
+         - from your own NuGet feed (-FeedUrl), with the versions in build/packages.config.
     2. Copies Metadata to a work folder and stamps -Version into the model descriptors.
     3. Compiles OlkInc-D365FO-EDS, then OlkInc-D365FO-EDS-Test (when the ApplicationSuite package is present).
     4. Creates two deployable packages in -OutputPath:
@@ -15,7 +17,12 @@
     with Visual Studio 2022 or Build Tools 2022 (MSBuild and .NET Framework 4.7.2 targeting pack).
 
 .EXAMPLE
+    ./build/Build-EDS.ps1 -Version 1.0.0.1 -FnoVersion 10.0.49
+    Downloads the packages for 10.0.49 from the fscps.tools community storage.
+
+.EXAMPLE
     ./build/Build-EDS.ps1 -Version 1.0.0.1 -FeedUrl https://pkgs.dev.azure.com/org/_packaging/d365/nuget/v3/index.json -FeedToken $pat
+    Restores the packages listed in build/packages.config from your own feed.
 #>
 [CmdletBinding()]
 param(
@@ -25,7 +32,15 @@ param(
     [string] $OutputPath = (Join-Path $PSScriptRoot '..\out\release'),
     [string] $FeedUrl = $env:D365_NUGET_FEED_URL,
     [string] $FeedUser = $(if ($env:D365_NUGET_FEED_USER) { $env:D365_NUGET_FEED_USER } else { 'build' }),
-    [string] $FeedToken = $env:D365_NUGET_FEED_TOKEN
+    [string] $FeedToken = $env:D365_NUGET_FEED_TOKEN,
+    # F&O version to build for (for example 10.0.49). Its packages come from the fscps.tools community
+    # storage when it has them, otherwise from -FeedUrl.
+    [string] $FnoVersion = $env:D365_FNO_VERSION,
+    [ValidateSet('GA', 'Latest')] [string] $VersionStrategy = $(if ($env:D365_VERSION_STRATEGY) { $env:D365_VERSION_STRATEGY } else { 'GA' }),
+    [string] $FscpsToolsVersion = $(if ($env:FSCPS_TOOLS_VERSION) { $env:FSCPS_TOOLS_VERSION } else { '1.1.346' }),
+    [switch] $SkipTestModel,
+    # Appended to the package file names, for example -FO10.0.49.
+    [string] $PackageSuffix = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -42,37 +57,92 @@ $WorkPath = (Resolve-Path $WorkPath).Path
 $OutputPath = (Resolve-Path $OutputPath).Path
 
 # ---------------------------------------------------------------- 1. NuGet packages
-$packagesConfig = Join-Path $PSScriptRoot 'packages.config'
-[xml] $pc = Get-Content -Raw $packagesConfig
-$packages = @($pc.packages.package | ForEach-Object { [pscustomobject]@{ Id = $_.id; Version = $_.version; Path = Join-Path $NuGetPath "$($_.id).$($_.version)" } })
-$unset = @($packages | Where-Object { $_.Version -notmatch '^\d' })
-if ($unset) { throw "Set the versions in build/packages.config first (still unset: $(($unset.Id) -join ', '))." }
-
-$missing = @($packages | Where-Object { -not (Test-Path $_.Path) })
-if ($missing) {
-    if (-not $FeedUrl) { throw "Packages missing from $NuGetPath and no feed given. Set D365_NUGET_FEED_URL (see docs/build-and-release.md)." }
-    $nuget = (Get-Command nuget.exe -ErrorAction SilentlyContinue).Source
-    if (-not $nuget) {
-        $nuget = Join-Path $WorkPath 'nuget.exe'
-        Invoke-WebRequest 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe' -OutFile $nuget
+function Restore-FromFeed {
+    $packagesConfig = Join-Path $PSScriptRoot 'packages.config'
+    [xml] $pc = Get-Content -Raw $packagesConfig
+    $list = @($pc.packages.package | ForEach-Object { [pscustomobject]@{ Id = $_.id; Version = $_.version; Path = Join-Path $NuGetPath "$($_.id).$($_.version)" } })
+    $unset = @($list | Where-Object { $_.Version -notmatch '^\d' })
+    if ($unset) { throw "Set the versions in build/packages.config first (still unset: $(($unset.Id) -join ', '))." }
+    $missing = @($list | Where-Object { -not (Test-Path $_.Path) })
+    if ($missing) {
+        $nuget = (Get-Command nuget.exe -ErrorAction SilentlyContinue).Source
+        if (-not $nuget) {
+            $nuget = Join-Path $WorkPath 'nuget.exe'
+            Invoke-WebRequest 'https://dist.nuget.org/win-x86-commandline/latest/nuget.exe' -OutFile $nuget
+        }
+        $nugetConfig = Join-Path $WorkPath 'nuget.config'
+        Set-Content $nugetConfig '<?xml version="1.0" encoding="utf-8"?><configuration><packageSources><clear /></packageSources></configuration>'
+        & $nuget sources add -Name d365 -Source $FeedUrl -ConfigFile $nugetConfig -NonInteractive | Out-Null
+        if ($FeedToken) {
+            & $nuget sources update -Name d365 -Username $FeedUser -Password $FeedToken -StorePasswordInClearText -ConfigFile $nugetConfig -NonInteractive | Out-Null
+        }
+        Write-Host "Restoring $($missing.Count) package(s) from the feed. The application packages are large; this takes a while."
+        & $nuget restore $packagesConfig -PackagesDirectory $NuGetPath -ConfigFile $nugetConfig -NonInteractive
+        $exit = $LASTEXITCODE
+        Remove-Item $nugetConfig -Force
+        if ($exit) { throw "nuget restore failed ($exit)." }
     }
-    $nugetConfig = Join-Path $WorkPath 'nuget.config'
-    Set-Content $nugetConfig '<?xml version="1.0" encoding="utf-8"?><configuration><packageSources><clear /></packageSources></configuration>'
-    & $nuget sources add -Name d365 -Source $FeedUrl -ConfigFile $nugetConfig -NonInteractive | Out-Null
-    if ($FeedToken) {
-        & $nuget sources update -Name d365 -Username $FeedUser -Password $FeedToken -StorePasswordInClearText -ConfigFile $nugetConfig -NonInteractive | Out-Null
-    }
-    Write-Host "Restoring $($missing.Count) package(s) from the feed. The application packages are large; this takes a while."
-    & $nuget restore $packagesConfig -PackagesDirectory $NuGetPath -ConfigFile $nugetConfig -NonInteractive
-    if ($LASTEXITCODE) { throw "nuget restore failed ($LASTEXITCODE)." }
-    Remove-Item $nugetConfig -Force
+    return $list
 }
 
+function Import-Fscps {
+    if (Get-Module fscps.tools) { return }
+    if (-not (Get-Module -ListAvailable fscps.tools | Where-Object { $_.Version -eq [version] $FscpsToolsVersion })) {
+        Set-PSRepository PSGallery -InstallationPolicy Trusted
+        Install-Module fscps.tools -RequiredVersion $FscpsToolsVersion -Scope CurrentUser -AllowClobber -Force
+    }
+    Import-Module fscps.tools -RequiredVersion $FscpsToolsVersion -Force
+}
+
+# fscps.tools (https://github.com/fscpscollaborative/fscps.tools) keeps the LCS packages for every
+# F&O version in a public Azure storage account run by its maintainers. Not a Microsoft service.
+function Restore-FromFscps {
+    $manifest = Join-Path $NuGetPath "fscps-$FnoVersion-$VersionStrategy.json"
+    if (Test-Path $manifest) {
+        $list = @(Get-Content -Raw $manifest | ConvertFrom-Json)
+        if (-not @($list | Where-Object { -not (Test-Path $_.Path) })) { Write-Host "Using cached packages for $FnoVersion ($VersionStrategy)."; return $list }
+    }
+    Import-Fscps
+    $types = @('PlatformCompilerPackage', 'PlatformDevALM', 'ApplicationDevALM')
+    if (-not $SkipTestModel) { $types += 'ApplicationSuiteDevALM' }
+    $downloads = Join-Path $WorkPath 'nupkg'
+    New-Item -ItemType Directory -Force -Path $downloads | Out-Null
+    $list = foreach ($type in $types) {
+        Write-Host "Downloading $type for $FnoVersion ($VersionStrategy). The application packages are large; this takes a while."
+        # Get-FSCPSNuget also passes on the download's own output (the file); keep only its result hashtable.
+        $r = @(Get-FSCPSNuget -KnownVersion $FnoVersion -KnownType $VersionStrategy -Type $type -Path $downloads) |
+            Where-Object { $_ -is [hashtable] -and $_.ContainsKey('Package') } | Select-Object -Last 1
+        if (-not $r -or -not (Test-Path (Join-Path $r.Path $r.Package))) { throw "fscps.tools could not download $type for $FnoVersion." }
+        if ($r.Package -notmatch '^(?<id>Microsoft\.Dynamics\.AX\..+?)\.(?<v>\d+\.\d+\.\d+\.\d+)\.nupkg$') { throw "Unexpected package name $($r.Package)." }
+        $target = Join-Path $NuGetPath "$($Matches.id).$($Matches.v)"
+        if (Test-Path $target) { Remove-Item $target -Recurse -Force }
+        Expand-Archive (Join-Path $r.Path $r.Package) $target
+        Remove-Item (Join-Path $r.Path $r.Package) -Force
+        [pscustomobject]@{ Id = $Matches.id; Version = $Matches.v; Path = $target }
+    }
+    $list | ConvertTo-Json | Set-Content $manifest
+    return @($list)
+}
+
+# -FnoVersion uses the community storage when it has that version; otherwise the feed is used when one is configured.
+$fscpsHasVersion = $false
+if ($FnoVersion) {
+    if ($FnoVersion -notmatch '^10\.0\.\d+$') { throw "F&O version '$FnoVersion' must look like 10.0.49." }
+    $cached = Test-Path (Join-Path $NuGetPath "fscps-$FnoVersion-$VersionStrategy.json")
+    if (-not $cached) { Import-Fscps }
+    $fscpsHasVersion = $cached -or [bool](Get-FSCPSVersionInfo -Version $FnoVersion)
+}
+if ($fscpsHasVersion) { $packages = @(Restore-FromFscps) }
+elseif ($FeedUrl) { $packages = @(Restore-FromFeed) }
+elseif ($FnoVersion) { throw "No packages for F&O ${FnoVersion}: the fscps.tools community storage does not list it and no NuGet feed is configured." }
+else { throw 'No package source: give -FnoVersion (fscps.tools community storage) or set D365_NUGET_FEED_URL (your own feed). See docs/build-and-release.md.' }
+$packages | ForEach-Object { Write-Host "Package $($_.Id) $($_.Version)" }
+
 $compiler = $packages | Where-Object Id -eq 'Microsoft.Dynamics.AX.Platform.CompilerPackage'
-if (-not $compiler) { throw 'build/packages.config must contain Microsoft.Dynamics.AX.Platform.CompilerPackage.' }
+if (-not $compiler) { throw 'The packages must include Microsoft.Dynamics.AX.Platform.CompilerPackage.' }
 $compilerPath = $compiler.Path
 $referencePackages = @($packages | Where-Object { $_.Id -ne $compiler.Id })
-$hasAppSuite = [bool]($packages | Where-Object Id -like '*.ApplicationSuite.DevALM.BuildXpp')
+$hasAppSuite = (-not $SkipTestModel) -and [bool]($packages | Where-Object Id -like '*.ApplicationSuite.DevALM.BuildXpp')
 
 # ---------------------------------------------------------------- 2. Metadata copy with the version stamped
 $metadata = Join-Path $WorkPath 'Metadata'
@@ -98,17 +168,53 @@ if (-not $msbuild) {
 if (-not $msbuild) { throw 'MSBuild was not found. Install Visual Studio 2022 or Build Tools 2022.' }
 
 $referenceFolders = @($referencePackages | ForEach-Object { Join-Path $_.Path 'ref\net40' }) + @($metadata, $bin)
+# The reference folders are a ';' list, which a /p: switch cannot carry (MSBuild splits the switch there, and
+# an escaped %3B stays one path for the compiler). They go into a props file that the projects import.
+$referenceProps = Join-Path $WorkPath 'references.props'
+$propsXml = New-Object System.Xml.XmlDocument
+$root = $propsXml.AppendChild($propsXml.CreateElement('Project', 'http://schemas.microsoft.com/developer/msbuild/2003'))
+$group = $root.AppendChild($propsXml.CreateElement('PropertyGroup', $root.NamespaceURI))
+$group.AppendChild($propsXml.CreateElement('ReferenceFolder', $root.NamespaceURI)).InnerText = $referenceFolders -join ';'
+$propsXml.Save($referenceProps)
 $models = @($mainModel)
-if ($hasAppSuite) { $models += $testModel } else { Write-Warning "No ApplicationSuite package in build/packages.config: $testModel is not built." }
+if ($hasAppSuite) { $models += $testModel } else { Write-Warning "No ApplicationSuite package (or -SkipTestModel): $testModel is not built." }
+
+# The X++ build tasks read the solution file (SolutionFileParser), so each project is built through a
+# one-project solution in the work folder, the same way Visual Studio and the Microsoft pipelines build it.
+function New-ModelSolution([string] $model) {
+    $proj = Join-Path $PSScriptRoot "projects\$model\$model.rnrproj"
+    [xml] $p = Get-Content -Raw $proj
+    $guid = ($p.Project.PropertyGroup | ForEach-Object { $_.ProjectGuid } | Where-Object { $_ } | Select-Object -First 1).ToUpperInvariant()
+    $sln = Join-Path $WorkPath "$model.sln"
+    $cfg = "$guid.Debug|Any CPU"
+    @(
+        'Microsoft Visual Studio Solution File, Format Version 12.00'
+        '# Visual Studio Version 17'
+        'VisualStudioVersion = 17.0.31903.59'
+        'MinimumVisualStudioVersion = 10.0.40219.1'
+        "Project(`"{FC65038C-1B2F-41E1-A629-BED71D161FFF}`") = `"$model`", `"$proj`", `"$guid`""
+        'EndProject'
+        'Global'
+        "`tGlobalSection(SolutionConfigurationPlatforms) = preSolution"
+        "`t`tDebug|Any CPU = Debug|Any CPU"
+        "`tEndGlobalSection"
+        "`tGlobalSection(ProjectConfigurationPlatforms) = postSolution"
+        "`t`t$cfg.ActiveCfg = Debug|Any CPU"
+        "`t`t$cfg.Build.0 = Debug|Any CPU"
+        "`tEndGlobalSection"
+        'EndGlobal'
+    ) | Set-Content $sln -Encoding utf8
+    return $sln
+}
 
 foreach ($model in $models) {
     Write-Host "::group::Compile $model"
-    $proj = Join-Path $PSScriptRoot "projects\$model\$model.rnrproj"
-    & $msbuild $proj /nologo /m /verbosity:minimal /p:Configuration=Debug `
+    $sln = New-ModelSolution $model
+    & $msbuild $sln /nologo /m /verbosity:minimal /p:Configuration=Debug "/p:Platform=Any CPU" `
         "/p:BuildTasksDirectory=$compilerPath\DevAlm" `
         "/p:MetadataDirectory=$metadata" `
         "/p:FrameworkDirectory=$compilerPath" `
-        "/p:ReferenceFolder=$($referenceFolders -join ';')" `
+        "/p:EdsReferenceProps=$referenceProps" `
         "/p:ReferencePath=$compilerPath" `
         "/p:OutputDirectory=$bin"
     $exit = $LASTEXITCODE
@@ -118,34 +224,11 @@ foreach ($model in $models) {
 }
 
 # ---------------------------------------------------------------- 4. Deployable packages
-function Find-CompilerFile([string] $name) {
-    $default = Join-Path $compilerPath "ref\net40\$name"
-    if (Test-Path $default) { return $default }
-    $found = Get-ChildItem $compilerPath -Recurse -Filter $name | Select-Object -First 1
-    if (-not $found) { throw "$name not found in $compilerPath." }
-    return $found.FullName
-}
-$createPackage = Find-CompilerFile 'CreatePackage.psm1'
-$xppTools = Split-Path $createPackage
-$basePackage = Find-CompilerFile 'BaseMetadataDeployablePackage.zip'
-Import-Module $createPackage -Force
-Add-Type -Path (Find-CompilerFile 'Microsoft.Dynamics.AXCreateDeployablePackageBase.dll')
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-
-function New-EdsDeployablePackage([string] $name, [string[]] $modules) {
-    $stage = Join-Path $WorkPath "stage-$name"
-    $combined = Join-Path $WorkPath "$name-runtime.zip"
-    $target = Join-Path $OutputPath "$name-$Version.zip"
-    foreach ($p in @($stage, $combined, $target)) { if (Test-Path $p) { Remove-Item $p -Recurse -Force } }
-    New-Item -ItemType Directory -Path $stage | Out-Null
-    foreach ($m in $modules) {
-        New-XppRuntimePackage -packageName $m -packageDrop $stage -metadataDir $bin -bin $xppTools -enforceVersionCheck $true | Out-Null
-    }
-    [System.IO.Compression.ZipFile]::CreateFromDirectory($stage, $combined)
-    [Microsoft.Dynamics.AXCreateDeployablePackageBase.BuildDeployablePackages]::MergePackage($basePackage, $combined, $target, $true, [string]::Empty) | Out-Null
-    if (-not (Test-Path $target)) { throw "Deployable package $target was not created." }
-    Write-Host "Created $target"
-}
-
-New-EdsDeployablePackage $mainModel @($mainModel)
-if ($hasAppSuite) { New-EdsDeployablePackage $testModel @($mainModel, $testModel) }
+# Microsoft's packaging module and metadata assemblies are .NET Framework code: run them in Windows PowerShell 5.1.
+$packageArgs = @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot 'New-EdsPackages.ps1'),
+    '-CompilerPath', $compilerPath, '-BinPath', $bin, '-WorkPath', $WorkPath, '-OutputPath', $OutputPath,
+    '-Version', $Version, '-MainModel', $mainModel)
+if ($PackageSuffix) { $packageArgs += @('-PackageSuffix', $PackageSuffix) }
+if ($hasAppSuite) { $packageArgs += @('-TestModel', $testModel) }
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" @packageArgs
+if ($LASTEXITCODE) { throw "Creating the deployable packages failed ($LASTEXITCODE)." }

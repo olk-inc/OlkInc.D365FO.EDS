@@ -33,6 +33,9 @@
     <DataEntityExpandParentChildRelations>False</DataEntityExpandParentChildRelations>
     <DataEntityUseLabelTextAsFieldName>False</DataEntityUseLabelTextAsFieldName>
   </PropertyGroup>
+  <!-- Build-EDS.ps1 passes the compiler reference folders in this file. -->
+  <Import Project="$(EdsReferenceProps)" Condition="'$(EdsReferenceProps)' != '' and Exists('$(EdsReferenceProps)')" />
+  <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
   <Import Project="$(BuildTasksDirectory)\Microsoft.Dynamics.Framework.Tools.BuildTasks.17.0.targets" Condition="Exists('$(BuildTasksDirectory)\Microsoft.Dynamics.Framework.Tools.BuildTasks.17.0.targets')" />
   <Import Project="$(BuildTasksDirectory)\Microsoft.Dynamics.Framework.Tools.BuildTasks.targets" Condition="!Exists('$(BuildTasksDirectory)\Microsoft.Dynamics.Framework.Tools.BuildTasks.17.0.targets')" />
 </Project>
