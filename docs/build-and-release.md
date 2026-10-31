@@ -125,7 +125,7 @@ The installation synchronizes the database. Then check the configuration key and
 
 ## Building on your own machine
 
-On a Windows machine with Visual Studio 2022 or Build Tools 2022:
+On a Windows machine with Visual Studio 2022 or Build Tools 2022, from PowerShell 7 (the deployable packages are then created by [`build/New-EdsPackages.ps1`](../build/New-EdsPackages.ps1) in Windows PowerShell 5.1, because Microsoft's packaging code needs .NET Framework):
 
 ```powershell
 ./build/Build-EDS.ps1 -Version 1.1.0.0 -FnoVersion 10.0.49 -PackageSuffix -FO10.0.49
