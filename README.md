@@ -30,6 +30,7 @@ All forms are under **System administration > Setup > Environment data setup**. 
 | Environment data setup log | [docs/log.md](docs/log.md) |
 | Security and configuration key | [docs/security.md](docs/security.md) |
 | Tests | [docs/tests.md](docs/tests.md) |
+| Build pipeline and releases | [docs/build-and-release.md](docs/build-and-release.md) |
 
 ## Repository layout
 
@@ -38,6 +39,8 @@ Metadata/
   OlkInc-D365FO-EDS/        the model
   OlkInc-D365FO-EDS-Test/   tests and the sample code jobs
 docs/                       the documentation
+build/                      build script, build projects and NuGet package list
+.github/workflows/          GitHub Actions build and release
 ```
 
 Both models use the standard PackagesLocalDirectory layout.
@@ -48,6 +51,10 @@ Both models use the standard PackagesLocalDirectory layout.
 | OlkInc-D365FO-EDS-Test | ApplicationPlatform, ApplicationFoundation, ApplicationSuite, OlkInc-D365FO-EDS |
 
 ## Installing
+
+To install without building, download a deployable package from the repository's **Releases** and apply it as described in [Build and release](docs/build-and-release.md#installing-a-release).
+
+To work on the source:
 
 1. Copy or link both folders under `Metadata` into PackagesLocalDirectory, or map them in your source control workspace.
 2. Build OlkInc-D365FO-EDS (and OlkInc-D365FO-EDS-Test on development environments) and synchronize the database.
