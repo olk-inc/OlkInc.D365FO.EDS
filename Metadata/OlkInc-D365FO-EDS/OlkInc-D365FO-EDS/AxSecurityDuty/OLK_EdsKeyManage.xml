@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EdsKeyManage</Name>
+	<Label>@OLK_EDSLabel:KeyManageDuty</Label>
+	<Privileges>
+		<AxSecurityPrivilegeReference>
+			<Name>OLK_EdsKeyManage</Name>
+		</AxSecurityPrivilegeReference>
+	</Privileges>
+</AxSecurityDuty>

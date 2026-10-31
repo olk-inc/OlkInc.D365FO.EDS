@@ -1,0 +1,549 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupKeyManager</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Manages the encryption keys of environments: creates the key of the current environment, fetches the key of another
+/// environment from its key service, exports and imports enrolment ZIP files, and unlocks the private key at execution.
+/// </summary>
+/// <remarks>
+/// See docs/encryption.md for the whole flow.
+/// </remarks>
+public static class OLK_EnvironmentDataSetupKeyManager
+{
+    public const str ServicePath        = '/api/services/OLK_EdsServices/OLK_EdsKeyService/getEnrolment';
+    public const str TokenUrl           = 'https://login.microsoftonline.com/%1/oauth2/v2.0/token';
+    public const str EnvironmentsPath   = '/?mi=OLK_EnvironmentDataSetupTable';
+    public const str EnrolmentFileName  = 'enrolment.txt';
+    public const str PublicKeyFileName  = 'public-key.xml';
+    public const str LockedKeyFileName  = 'private-key.locked.txt';
+    public const str ReadMeFileName     = 'README.txt';
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>normalizeHost</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The host name of a URL in lower case, for example <c>uat.sandbox.operations.dynamics.com</c>.
+    /// </summary>
+    /// <param name = "_url">A URL, with or without https://.</param>
+    /// <returns>The host name; empty if the URL is not valid.</returns>
+    public static OLK_EdsHostName normalizeHost(str _url)
+    {
+        str         url = strLRTrim(_url);
+        System.Uri  uri;
+        str         host;
+
+        if (!url)
+        {
+            return '';
+        }
+
+        if (!strScan(url, '://', 1, strLen(url)))
+        {
+            url = 'https://' + url;
+        }
+
+        try
+        {
+            uri  = new System.Uri(url);
+            host = strLwr(uri.Host);
+        }
+        catch (Exception::CLRError)
+        {
+            host = '';
+        }
+
+        return host;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>currentHost</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The host name of the current environment.
+    /// </summary>
+    public static OLK_EdsHostName currentHost()
+    {
+        Microsoft.Dynamics.ApplicationPlatform.Environment.IApplicationEnvironment environment =
+            Microsoft.Dynamics.ApplicationPlatform.Environment.EnvironmentFactory::GetApplicationEnvironment();
+
+        return OLK_EnvironmentDataSetupKeyManager::normalizeHost(environment.Infrastructure.HostUrl);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isCurrentEnvironment</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks whether an environment record describes the environment this code runs in, by its URL.
+    /// </summary>
+    public static boolean isCurrentEnvironment(OLK_EnvironmentDataSetupTable _environment)
+    {
+        OLK_EdsHostName host = OLK_EnvironmentDataSetupKeyManager::normalizeHost(_environment.EnvironmentUrl);
+
+        return host && host == OLK_EnvironmentDataSetupKeyManager::currentHost();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>canUnlock</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks that the current environment can unlock a locked private key and that it belongs to the public key.
+    /// </summary>
+    public static boolean canUnlock(OLK_EdsPublicKey _publicKey, OLK_EdsEncryptedBlob _lockedPrivateKey)
+    {
+        return OLK_EnvironmentDataSetupKeyManager::unlock(_publicKey, _lockedPrivateKey) != '';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>unlock</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Unlocks a private key and checks that it belongs to the public key.
+    /// </summary>
+    /// <returns>The private key; empty if it cannot be unlocked here or does not belong to the public key.</returns>
+    private static str unlock(OLK_EdsPublicKey _publicKey, OLK_EdsEncryptedBlob _lockedPrivateKey)
+    {
+        str privateKey = OLK_EnvironmentDataSetupCrypto::unlockPrivateKey(_lockedPrivateKey);
+
+        if (!privateKey || !_publicKey || OLK_EnvironmentDataSetupCrypto::publicKeyOf(privateKey) != _publicKey)
+        {
+            return '';
+        }
+
+        return privateKey;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>localEnrolment</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The key of the current environment. Creates it the first time.
+    /// </summary>
+    /// <returns>The enrolment of the current environment.</returns>
+    /// <remarks>
+    /// After a database refresh the key arrives in the environment record that the master holds for this environment, so that
+    /// record is used first. Before the first refresh the key is kept in <c>OLK_EnvironmentDataSetupKey</c>; the same key is
+    /// returned until a refresh replaces that table.
+    /// </remarks>
+    public static OLK_EnvironmentDataSetupEnrolment localEnrolment()
+    {
+        OLK_EdsHostName                 host = OLK_EnvironmentDataSetupKeyManager::currentHost();
+        OLK_EnvironmentDataSetupTable   environment;
+        OLK_EnvironmentDataSetupKey     localKey;
+        container                       keyPair;
+
+        if (!host)
+        {
+            throw error("@OLK_EDSLabel:CurrentUrlUnknown");
+        }
+
+        while select environment
+            where environment.EnvironmentUrl != ''
+        {
+            if (OLK_EnvironmentDataSetupKeyManager::normalizeHost(environment.EnvironmentUrl) == host
+                && OLK_EnvironmentDataSetupKeyManager::canUnlock(environment.PublicKey, environment.LockedPrivateKey))
+            {
+                return OLK_EnvironmentDataSetupEnrolment::newKey(host, environment.PublicKey, environment.LockedPrivateKey, environment.KeyEnrolledDateTime);
+            }
+        }
+
+        ttsbegin;
+
+        localKey = OLK_EnvironmentDataSetupKey::find(host, true);
+
+        if (!localKey.RecId || !OLK_EnvironmentDataSetupKeyManager::canUnlock(localKey.PublicKey, localKey.LockedPrivateKey))
+        {
+            keyPair = OLK_EnvironmentDataSetupCrypto::generateKeyPair();
+
+            localKey.HostName            = host;
+            localKey.PublicKey           = conPeek(keyPair, 1);
+            localKey.LockedPrivateKey    = OLK_EnvironmentDataSetupCrypto::lockPrivateKey(conPeek(keyPair, 2));
+            localKey.KeyFingerprint      = OLK_EnvironmentDataSetupCrypto::fingerprint(localKey.PublicKey);
+            localKey.KeyCreatedDateTime  = DateTimeUtil::utcNow();
+            localKey.write();
+        }
+
+        ttscommit;
+
+        return OLK_EnvironmentDataSetupEnrolment::newKey(host, localKey.PublicKey, localKey.LockedPrivateKey, localKey.KeyCreatedDateTime);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>privateKeyForEnvironment</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Unlocks the private key of an environment, for executing its setup.
+    /// </summary>
+    /// <param name = "_environmentId">The environment.</param>
+    /// <returns>The private key.</returns>
+    /// <exception>An error if the environment has no key, its URL is not the current one, or the key cannot be unlocked here.</exception>
+    public static str privateKeyForEnvironment(OLK_EdsEnvironmentId _environmentId)
+    {
+        OLK_EnvironmentDataSetupTable   environment = OLK_EnvironmentDataSetupTable::find(_environmentId);
+        str                             privateKey;
+
+        if (!environment.PublicKey)
+        {
+            throw error(strFmt("@OLK_EDSLabel:EnvironmentNotEnrolled", _environmentId));
+        }
+
+        if (environment.EnvironmentUrl && !OLK_EnvironmentDataSetupKeyManager::isCurrentEnvironment(environment))
+        {
+            throw error(strFmt("@OLK_EDSLabel:WrongEnvironment", _environmentId, environment.EnvironmentUrl, OLK_EnvironmentDataSetupKeyManager::currentHost()));
+        }
+
+        privateKey = OLK_EnvironmentDataSetupKeyManager::unlock(environment.PublicKey, environment.LockedPrivateKey);
+
+        if (!privateKey)
+        {
+            throw error(strFmt("@OLK_EDSLabel:KeyNotUnlocked", _environmentId));
+        }
+
+        return privateKey;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>applyEnrolment</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Stores the key of an environment in its environment record.
+    /// </summary>
+    /// <param name = "_environment">The environment record.</param>
+    /// <param name = "_enrolment">The key, from the key service or an enrolment file.</param>
+    /// <param name = "_replaceKey">true to replace a different key; the encrypted values of the environment are then cleared.</param>
+    /// <returns>true if the key was stored; false if the environment has a different key and <c>_replaceKey</c> is false.</returns>
+    public static boolean applyEnrolment(OLK_EnvironmentDataSetupTable _environment, OLK_EnvironmentDataSetupEnrolment _enrolment, boolean _replaceKey = false)
+    {
+        OLK_EnvironmentDataSetupTable   environment;
+        OLK_EnvironmentDataSetupTrans   trans;
+        OLK_EdsHostName                 host = OLK_EnvironmentDataSetupKeyManager::normalizeHost(_environment.EnvironmentUrl);
+
+        if (!host)
+        {
+            throw error(strFmt("@OLK_EDSLabel:EnvironmentUrlEmpty", _environment.EnvironmentId));
+        }
+
+        if (_enrolment.parmHostName() != host)
+        {
+            throw error(strFmt("@OLK_EDSLabel:EnrolmentHostMismatch", _enrolment.parmHostName(), host));
+        }
+
+        ttsbegin;
+
+        environment = OLK_EnvironmentDataSetupTable::find(_environment.EnvironmentId, true);
+
+        if (environment.KeyFingerprint && environment.KeyFingerprint != _enrolment.parmFingerprint())
+        {
+            if (!_replaceKey)
+            {
+                ttsabort;
+                return false;
+            }
+
+            update_recordset trans
+                setting CipherText = ''
+                where trans.EnvironmentId  == environment.EnvironmentId
+                   && trans.EncryptedField == NoYes::Yes;
+        }
+
+        environment.PublicKey           = _enrolment.parmPublicKey();
+        environment.LockedPrivateKey    = _enrolment.parmLockedPrivateKey();
+        environment.KeyFingerprint      = _enrolment.parmFingerprint();
+        environment.KeyEnrolledDateTime = DateTimeUtil::utcNow();
+        environment.update();
+
+        ttscommit;
+
+        info(strFmt("@OLK_EDSLabel:KeyStored", environment.EnvironmentId, environment.KeyFingerprint));
+
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>fetchEnrolment</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Calls the key service of an environment and returns its key.
+    /// </summary>
+    /// <param name = "_environment">The environment record with URL, client id, tenant id and client secret.</param>
+    /// <returns>The key of the environment.</returns>
+    /// <exception>An error with the reason if the service cannot be reached.</exception>
+    public static OLK_EnvironmentDataSetupEnrolment fetchEnrolment(OLK_EnvironmentDataSetupTable _environment)
+    {
+        OLK_EdsHostName host = OLK_EnvironmentDataSetupKeyManager::normalizeHost(_environment.EnvironmentUrl);
+        str             token;
+        str             response;
+
+        if (!host)
+        {
+            throw error(strFmt("@OLK_EDSLabel:EnvironmentUrlEmpty", _environment.EnvironmentId));
+        }
+
+        if (!_environment.ClientId || !_environment.TenantId)
+        {
+            throw error(strFmt("@OLK_EDSLabel:ClientIdEmpty", _environment.EnvironmentId));
+        }
+
+        token    = OLK_EnvironmentDataSetupKeyManager::accessToken(_environment.TenantId, _environment.ClientId, _environment.clientSecret(), 'https://' + host);
+        response = OLK_EnvironmentDataSetupKeyManager::post('https://' + host + OLK_EnvironmentDataSetupKeyManager::ServicePath, '{}', 'application/json', token);
+
+        return OLK_EnvironmentDataSetupEnrolment::fromTransportText(response);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>accessToken</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets a Microsoft Entra ID token for an environment with the client credentials flow.
+    /// </summary>
+    private static str accessToken(OLK_EdsTenantId _tenantId, OLK_EdsClientId _clientId, str _clientSecret, str _resource)
+    {
+        System.Text.RegularExpressions.Match    match;
+        str                                     body;
+        str                                     response;
+
+        body = 'grant_type=client_credentials'
+            + '&client_id='     + System.Uri::EscapeDataString(_clientId)
+            + '&client_secret=' + System.Uri::EscapeDataString(_clientSecret)
+            + '&scope='         + System.Uri::EscapeDataString(_resource + '/.default');
+
+        response = OLK_EnvironmentDataSetupKeyManager::post(strFmt(OLK_EnvironmentDataSetupKeyManager::TokenUrl, _tenantId), body, 'application/x-www-form-urlencoded', '');
+
+        match = System.Text.RegularExpressions.Regex::Match(response, @'"access_token"\s*:\s*"([^"]+)"');
+
+        if (!match.Success)
+        {
+            throw error("@OLK_EDSLabel:TokenFailed");
+        }
+
+        return match.Groups.get_Item(1).Value;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>post</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Sends an HTTP POST request and returns the response body.
+    /// </summary>
+    /// <exception>An error with the reason if the request fails.</exception>
+    private static str post(str _url, str _body, str _contentType, str _bearerToken)
+    {
+        System.Net.WebClient            webClient = new System.Net.WebClient();
+        System.Net.WebHeaderCollection  headers;
+        str                             response;
+
+        try
+        {
+            webClient.Encoding = System.Text.Encoding::UTF8;
+            headers = webClient.Headers;
+            headers.Add('Content-Type', _contentType);
+
+            if (_bearerToken)
+            {
+                headers.Add('Authorization', 'Bearer ' + _bearerToken);
+            }
+
+            response = webClient.UploadString(_url, 'POST', _body);
+            webClient.Dispose();
+        }
+        catch (Exception::CLRError)
+        {
+            throw error(strFmt("@OLK_EDSLabel:RequestFailed", _url, OLK_EnvironmentDataSetupKeyManager::lastClrErrorText()));
+        }
+
+        return response;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>lastClrErrorText</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The message of the innermost exception of the last CLR error.
+    /// </summary>
+    public static str lastClrErrorText()
+    {
+        System.Exception    ex = CLRInterop::getLastException();
+        str                 text;
+
+        while (ex != null)
+        {
+            text = ex.Message;
+            ex   = ex.InnerException;
+        }
+
+        return text;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>exportEnrolmentFile</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the enrolment ZIP file of the current environment.
+    /// </summary>
+    /// <returns>A stream positioned at the start of the ZIP file.</returns>
+    public static System.IO.MemoryStream exportEnrolmentFile()
+    {
+        OLK_EnvironmentDataSetupEnrolment       enrolment = OLK_EnvironmentDataSetupKeyManager::localEnrolment();
+        System.IO.MemoryStream                  stream    = new System.IO.MemoryStream();
+        System.IO.Compression.ZipArchive        archive;
+
+        archive = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode::Create, true);
+
+        OLK_EnvironmentDataSetupKeyManager::addZipEntry(archive, OLK_EnvironmentDataSetupKeyManager::EnrolmentFileName, enrolment.toText());
+        OLK_EnvironmentDataSetupKeyManager::addZipEntry(archive, OLK_EnvironmentDataSetupKeyManager::PublicKeyFileName, enrolment.parmPublicKey());
+        OLK_EnvironmentDataSetupKeyManager::addZipEntry(archive, OLK_EnvironmentDataSetupKeyManager::LockedKeyFileName,
+            OLK_EnvironmentDataSetupCrypto::blobToBase64(enrolment.parmLockedPrivateKey()));
+        OLK_EnvironmentDataSetupKeyManager::addZipEntry(archive, OLK_EnvironmentDataSetupKeyManager::ReadMeFileName,
+            strFmt("@OLK_EDSLabel:EnrolmentReadMe", enrolment.parmHostName(), enrolment.parmFingerprint()));
+
+        archive.Dispose();
+        stream.Seek(0, System.IO.SeekOrigin::Begin);
+
+        return stream;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>enrolmentFileName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The file name of the enrolment ZIP file of the current environment.
+    /// </summary>
+    public static Filename enrolmentFileName()
+    {
+        return strFmt('EDS-enrolment-%1.zip', strReplace(OLK_EnvironmentDataSetupKeyManager::currentHost(), '.', '-'));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>readEnrolmentFile</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Reads the key from an enrolment ZIP file.
+    /// </summary>
+    /// <param name = "_stream">The ZIP file.</param>
+    /// <returns>The key in the file.</returns>
+    public static OLK_EnvironmentDataSetupEnrolment readEnrolmentFile(System.IO.Stream _stream)
+    {
+        System.IO.Compression.ZipArchive        archive;
+        System.IO.Compression.ZipArchiveEntry   entry;
+        System.IO.StreamReader                  reader;
+        str                                     text;
+
+        try
+        {
+            archive = new System.IO.Compression.ZipArchive(_stream, System.IO.Compression.ZipArchiveMode::Read);
+            entry   = archive.GetEntry(OLK_EnvironmentDataSetupKeyManager::EnrolmentFileName);
+
+            if (entry != null)
+            {
+                reader = new System.IO.StreamReader(entry.Open(), System.Text.Encoding::UTF8);
+                text   = reader.ReadToEnd();
+                reader.Dispose();
+            }
+
+            archive.Dispose();
+        }
+        catch (Exception::CLRError)
+        {
+            throw error(strFmt("@OLK_EDSLabel:EnrolmentFileInvalid", OLK_EnvironmentDataSetupKeyManager::lastClrErrorText()));
+        }
+
+        if (!text)
+        {
+            throw error(strFmt("@OLK_EDSLabel:EnrolmentFileInvalid", OLK_EnvironmentDataSetupKeyManager::EnrolmentFileName));
+        }
+
+        return OLK_EnvironmentDataSetupEnrolment::fromText(text);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addZipEntry</Name>
+				<Source><![CDATA[
+    private static void addZipEntry(System.IO.Compression.ZipArchive _archive, str _name, str _content)
+    {
+        System.IO.Compression.ZipArchiveEntry   entry  = _archive.CreateEntry(_name);
+        System.IO.StreamWriter                  writer = new System.IO.StreamWriter(entry.Open(), new System.Text.UTF8Encoding(false));
+
+        writer.Write(_content);
+        writer.Flush();
+        writer.Dispose();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>encryptPlainValues</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Encrypts the values of encrypted data setup lines of an environment that are still stored in plain text.
+    /// </summary>
+    /// <param name = "_environmentId">The environment; it must have a key.</param>
+    /// <returns>The number of lines encrypted.</returns>
+    public static int encryptPlainValues(OLK_EdsEnvironmentId _environmentId)
+    {
+        OLK_EnvironmentDataSetupTable   environment = OLK_EnvironmentDataSetupTable::find(_environmentId);
+        OLK_EnvironmentDataSetupTrans   trans;
+        int                             counter;
+
+        if (!environment.PublicKey)
+        {
+            throw error(strFmt("@OLK_EDSLabel:EnvironmentNotEnrolled", _environmentId));
+        }
+
+        ttsbegin;
+
+        while select forupdate trans
+            where trans.EnvironmentId  == _environmentId
+               && trans.EncryptedField == NoYes::Yes
+               && trans.Value          != ''
+        {
+            trans.CipherText = OLK_EnvironmentDataSetupCrypto::encrypt(environment.PublicKey, trans.Value, trans.encryptionBinding());
+            trans.Value      = '';
+            trans.doUpdate();
+            counter++;
+        }
+
+        ttscommit;
+
+        info(strFmt("@OLK_EDSLabel:PlainValuesEncrypted", counter, _environmentId));
+
+        return counter;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupKeyAction</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// The encryption actions of the Environments form: Fetch key, Import enrolment, Export enrolment and Encrypt plain values.
+/// </summary>
+public final class OLK_EnvironmentDataSetupKeyAction
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    public static void main(Args _args)
+    {
+        OLK_EnvironmentDataSetupTable environment;
+
+        if (_args && _args.record() && _args.record().TableId == tableNum(OLK_EnvironmentDataSetupTable))
+        {
+            environment = _args.record();
+        }
+
+        switch (_args.menuItemName())
+        {
+            case menuItemActionStr(OLK_EdsFetchKey):
+                OLK_EnvironmentDataSetupKeyAction::fetchKey(OLK_EnvironmentDataSetupKeyAction::requireEnvironment(environment));
+                break;
+
+            case menuItemActionStr(OLK_EdsImportEnrolment):
+                OLK_EnvironmentDataSetupKeyAction::importEnrolment(OLK_EnvironmentDataSetupKeyAction::requireEnvironment(environment));
+                break;
+
+            case menuItemActionStr(OLK_EdsExportEnrolment):
+                OLK_EnvironmentDataSetupKeyAction::exportEnrolment();
+                break;
+
+            case menuItemActionStr(OLK_EdsEncryptPlainValues):
+                OLK_EnvironmentDataSetupKeyManager::encryptPlainValues(OLK_EnvironmentDataSetupKeyAction::requireEnvironment(environment).EnvironmentId);
+                break;
+        }
+
+        if (environment && FormDataUtil::isFormDataSource(environment))
+        {
+            FormDataUtil::getFormDataSource(environment).research(true);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>requireEnvironment</Name>
+				<Source><![CDATA[
+    private static OLK_EnvironmentDataSetupTable requireEnvironment(OLK_EnvironmentDataSetupTable _environment)
+    {
+        if (!_environment.RecId)
+        {
+            throw error("@OLK_EDSLabel:EnvironmentIdEmpty");
+        }
+
+        return _environment;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>fetchKey</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Fetches the key from the key service of the environment. If the service cannot be called, opens the Environments form
+    /// of that environment in a new browser tab, where the enrolment file can be exported, and says to import it here.
+    /// </summary>
+    public static void fetchKey(OLK_EnvironmentDataSetupTable _environment)
+    {
+        OLK_EnvironmentDataSetupEnrolment   enrolment;
+        OLK_EdsHostName                     host = OLK_EnvironmentDataSetupKeyManager::normalizeHost(_environment.EnvironmentUrl);
+        boolean                             fetched;
+
+        if (!host)
+        {
+            throw error(strFmt("@OLK_EDSLabel:EnvironmentUrlEmpty", _environment.EnvironmentId));
+        }
+
+        if (_environment.ClientId)
+        {
+            try
+            {
+                enrolment = OLK_EnvironmentDataSetupKeyManager::fetchEnrolment(_environment);
+                fetched   = true;
+            }
+            catch (Exception::Error)
+            {
+                // The reason is in the infolog; fall back to the enrolment file below.
+                fetched = false;
+            }
+        }
+
+        if (fetched)
+        {
+            OLK_EnvironmentDataSetupKeyAction::store(_environment, enrolment);
+            return;
+        }
+
+        warning(strFmt("@OLK_EDSLabel:FetchFallback", _environment.EnvironmentId, host));
+        new Browser().navigate('https://' + host + OLK_EnvironmentDataSetupKeyManager::EnvironmentsPath, true, false);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>importEnrolment</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Asks for an enrolment ZIP file and stores its key in the environment record.
+    /// </summary>
+    public static void importEnrolment(OLK_EnvironmentDataSetupTable _environment)
+    {
+        FileUploadTemporaryStorageResult result = File::GetFileFromUser() as FileUploadTemporaryStorageResult;
+
+        if (!result || !result.getUploadStatus())
+        {
+            return;
+        }
+
+        OLK_EnvironmentDataSetupKeyAction::store(_environment, OLK_EnvironmentDataSetupKeyManager::readEnrolmentFile(result.openResult()));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>exportEnrolment</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Sends the enrolment ZIP file of the current environment to the browser.
+    /// </summary>
+    public static void exportEnrolment()
+    {
+        File::SendFileToUser(OLK_EnvironmentDataSetupKeyManager::exportEnrolmentFile(), OLK_EnvironmentDataSetupKeyManager::enrolmentFileName());
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>store</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Stores a key; asks before replacing a different key, because the encrypted values must then be entered again.
+    /// </summary>
+    private static void store(OLK_EnvironmentDataSetupTable _environment, OLK_EnvironmentDataSetupEnrolment _enrolment)
+    {
+        if (!OLK_EnvironmentDataSetupKeyManager::applyEnrolment(_environment, _enrolment, false))
+        {
+            if (Box::yesNo(strFmt("@OLK_EDSLabel:ReplaceKeyQuestion", _environment.EnvironmentId, _environment.KeyFingerprint, _enrolment.parmFingerprint()), DialogButton::No) == DialogButton::Yes)
+            {
+                OLK_EnvironmentDataSetupKeyManager::applyEnrolment(_environment, _enrolment, true);
+            }
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

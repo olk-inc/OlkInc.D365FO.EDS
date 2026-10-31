@@ -7,6 +7,9 @@
 		<AxSecurityDutyReference>
 			<Name>OLK_EdsMaintain</Name>
 		</AxSecurityDutyReference>
+		<AxSecurityDutyReference>
+			<Name>OLK_EdsKeyManage</Name>
+		</AxSecurityDutyReference>
 	</Duties>
 	<Privileges />
 	<SubRoles />

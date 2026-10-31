@@ -12,6 +12,7 @@
 public class OLK_EnvironmentDataSetupExecuteService extends SysOperationServiceBase
 {
     OLK_EdsEnvironmentId environmentId;
+    str                  privateKey;
 }
 ]]></Declaration>
 		<Methods>
@@ -69,10 +70,16 @@ public class OLK_EnvironmentDataSetupExecuteService extends SysOperationServiceB
     {
         int     infologStart = infologLine();
         str     valueOrig;
+        str     encryptedValue;
         Common  record;
 
         try
         {
+            if (_trans.EncryptedField)
+            {
+                encryptedValue = this.encryptedValue(_trans);
+            }
+
             changecompany(this.company(_trans.RefDataAreaId))
             {
                 ttsbegin;
@@ -86,7 +93,7 @@ public class OLK_EnvironmentDataSetupExecuteService extends SysOperationServiceB
 
                 if (_trans.EncryptedField)
                 {
-                    OLK_EnvironmentDataSetupEncryptedField::setValue(record, _trans.EncryptedMethodName, _trans.Value);
+                    OLK_EnvironmentDataSetupEncryptedField::setValue(record, _trans.EncryptedMethodName, encryptedValue);
                 }
                 else
                 {
@@ -119,6 +126,34 @@ public class OLK_EnvironmentDataSetupExecuteService extends SysOperationServiceB
             this.insertLog(OLK_EdsLogType::Data, int642Str(_trans.RecId), _trans.Description, _trans.RefDataAreaId,
                 _trans.RefTableId, _trans.FieldId, _trans.RefRecId, valueOrig, this.logValue(_trans), OLK_EdsLogStatus::Error, this.infologTextSince(infologStart));
         }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>encryptedValue</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The value of an encrypted line, decrypted with the private key of the environment.
+    /// </summary>
+    /// <remarks>
+    /// The private key is unlocked once per execution. It can be unlocked only in the environment it belongs to, so executing the
+    /// setup of another environment fails for its encrypted lines. Lines that still hold a plain value (entered before values
+    /// were encrypted) return that value.
+    /// </remarks>
+    private str encryptedValue(OLK_EnvironmentDataSetupTrans _trans)
+    {
+        if (!_trans.CipherText)
+        {
+            return _trans.Value;
+        }
+
+        if (!privateKey)
+        {
+            privateKey = OLK_EnvironmentDataSetupKeyManager::privateKeyForEnvironment(environmentId);
+        }
+
+        return OLK_EnvironmentDataSetupCrypto::decrypt(privateKey, _trans.CipherText, _trans.encryptionBinding());
     }
 
 ]]></Source>

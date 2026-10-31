@@ -1,0 +1,403 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupCrypto</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Encryption of environment data setup values for one target environment.
+/// </summary>
+/// <remarks>
+/// Every environment has an RSA key pair. Values are encrypted with the public key of the environment they are meant for:
+/// a random 256 bit key encrypts the value with AES (CBC, PKCS7) and an HMAC-SHA256 authenticates it, and that random key is
+/// encrypted with RSA-OAEP-SHA256. The private key is never stored in plain text: it is locked with the platform encryption of
+/// the environment it belongs to, which uses the environment's own certificate. A database copy carries the locked key to
+/// other environments, but only the environment that locked it can unlock it.
+/// <para>
+/// Cipher text format: <c>OLK1:wrappedKey:iv:cipherText:mac</c>, each part base64. The MAC covers the first four parts and the
+/// binding of the data setup line, so a cipher text cannot be moved to another line.
+/// </para>
+/// </remarks>
+public static class OLK_EnvironmentDataSetupCrypto
+{
+    public const int RsaKeySize         = 3072;
+    public const str FormatVersion      = 'OLK1';
+    public const str PartSeparator      = ':';
+    public const str PrivateKeyPrefix   = '<RSAKeyValue>';
+    public const str ValueMask          = '********';
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>generateKeyPair</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Generates a new RSA key pair.
+    /// </summary>
+    /// <returns>A container with the public key and the private key, both as RSA key XML.</returns>
+    public static container generateKeyPair()
+    {
+        System.Security.Cryptography.RSACng rsa = new System.Security.Cryptography.RSACng(OLK_EnvironmentDataSetupCrypto::RsaKeySize);
+        str publicKey  = rsa.ToXmlString(false);
+        str privateKey = rsa.ToXmlString(true);
+
+        rsa.Dispose();
+
+        return [publicKey, privateKey];
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>publicKeyOf</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the public key that belongs to a private key.
+    /// </summary>
+    /// <param name = "_privateKey">The private key as RSA key XML.</param>
+    /// <returns>The public key as RSA key XML.</returns>
+    public static str publicKeyOf(str _privateKey)
+    {
+        System.Security.Cryptography.RSACng rsa = new System.Security.Cryptography.RSACng();
+        str publicKey;
+
+        rsa.FromXmlString(_privateKey);
+        publicKey = rsa.ToXmlString(false);
+        rsa.Dispose();
+
+        return publicKey;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>fingerprint</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The SHA-256 fingerprint of a public key, as 64 hexadecimal characters.
+    /// </summary>
+    /// <param name = "_publicKey">The public key as RSA key XML.</param>
+    /// <returns>The fingerprint; empty if there is no key.</returns>
+    public static OLK_EdsKeyFingerprint fingerprint(str _publicKey)
+    {
+        System.Security.Cryptography.SHA256 sha;
+        System.Byte[]                       hash;
+
+        if (!_publicKey)
+        {
+            return '';
+        }
+
+        sha  = System.Security.Cryptography.SHA256::Create();
+        hash = sha.ComputeHash(OLK_EnvironmentDataSetupCrypto::utf8Bytes(_publicKey));
+        sha.Dispose();
+
+        return strRem(System.BitConverter::ToString(hash), '-');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>encrypt</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Encrypts a value with the public key of an environment.
+    /// </summary>
+    /// <param name = "_publicKey">The public key of the target environment, as RSA key XML.</param>
+    /// <param name = "_value">The value.</param>
+    /// <param name = "_binding">Text that identifies where the value belongs; decrypting needs the same text.</param>
+    /// <returns>The cipher text.</returns>
+    public static OLK_EdsCipherText encrypt(str _publicKey, str _value, str _binding)
+    {
+        System.Security.Cryptography.Aes                aes;
+        System.Security.Cryptography.RSACng             rsa;
+        System.Security.Cryptography.ICryptoTransform   encryptor;
+        System.Byte[]   masterKey;
+        System.Byte[]   iv;
+        System.Byte[]   plainBytes;
+        System.Byte[]   cipherBytes;
+        System.Byte[]   wrappedKey;
+        str             body;
+
+        if (!_publicKey)
+        {
+            throw error("@OLK_EDSLabel:KeyNotEnrolled");
+        }
+
+        aes = System.Security.Cryptography.Aes::Create();
+        aes.GenerateKey();
+        masterKey = aes.Key;
+        aes.GenerateIV();
+        iv = aes.IV;
+
+        plainBytes  = OLK_EnvironmentDataSetupCrypto::utf8Bytes(_value);
+        encryptor   = aes.CreateEncryptor(OLK_EnvironmentDataSetupCrypto::deriveKey(masterKey, 'enc'), iv);
+        cipherBytes = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
+        encryptor.Dispose();
+        aes.Dispose();
+
+        rsa = new System.Security.Cryptography.RSACng();
+        rsa.FromXmlString(_publicKey);
+        wrappedKey = rsa.Encrypt(masterKey, System.Security.Cryptography.RSAEncryptionPadding::OaepSHA256);
+        rsa.Dispose();
+
+        body = OLK_EnvironmentDataSetupCrypto::FormatVersion
+            + OLK_EnvironmentDataSetupCrypto::PartSeparator + System.Convert::ToBase64String(wrappedKey)
+            + OLK_EnvironmentDataSetupCrypto::PartSeparator + System.Convert::ToBase64String(iv)
+            + OLK_EnvironmentDataSetupCrypto::PartSeparator + System.Convert::ToBase64String(cipherBytes);
+
+        return body + OLK_EnvironmentDataSetupCrypto::PartSeparator + OLK_EnvironmentDataSetupCrypto::mac(masterKey, body, _binding);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>decrypt</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Decrypts a value with the private key of the environment it was encrypted for.
+    /// </summary>
+    /// <param name = "_privateKey">The unlocked private key, as RSA key XML.</param>
+    /// <param name = "_cipherText">The cipher text.</param>
+    /// <param name = "_binding">The same text that was given when the value was encrypted.</param>
+    /// <returns>The value.</returns>
+    /// <exception>An error if the key is wrong, the cipher text was changed or the binding differs.</exception>
+    public static str decrypt(str _privateKey, OLK_EdsCipherText _cipherText, str _binding)
+    {
+        System.Security.Cryptography.Aes                aes;
+        System.Security.Cryptography.RSACng             rsa;
+        System.Security.Cryptography.ICryptoTransform   decryptor;
+        System.Byte[]   masterKey;
+        System.Byte[]   cipherBytes;
+        System.Byte[]   plainBytes;
+        List            parts = strSplit(_cipherText, OLK_EnvironmentDataSetupCrypto::PartSeparator);
+        ListEnumerator  enumerator;
+        str             version, wrappedKey, iv, cipher, mac, body;
+        str             value;
+
+        if (parts.elements() != 5)
+        {
+            throw error("@OLK_EDSLabel:CipherTextInvalid");
+        }
+
+        enumerator = parts.getEnumerator();
+        enumerator.moveNext();
+        version = enumerator.current();
+        enumerator.moveNext();
+        wrappedKey = enumerator.current();
+        enumerator.moveNext();
+        iv = enumerator.current();
+        enumerator.moveNext();
+        cipher = enumerator.current();
+        enumerator.moveNext();
+        mac = enumerator.current();
+
+        if (version != OLK_EnvironmentDataSetupCrypto::FormatVersion)
+        {
+            throw error("@OLK_EDSLabel:CipherTextInvalid");
+        }
+
+        body = version
+            + OLK_EnvironmentDataSetupCrypto::PartSeparator + wrappedKey
+            + OLK_EnvironmentDataSetupCrypto::PartSeparator + iv
+            + OLK_EnvironmentDataSetupCrypto::PartSeparator + cipher;
+
+        try
+        {
+            rsa = new System.Security.Cryptography.RSACng();
+            rsa.FromXmlString(_privateKey);
+            masterKey = rsa.Decrypt(System.Convert::FromBase64String(wrappedKey), System.Security.Cryptography.RSAEncryptionPadding::OaepSHA256);
+            rsa.Dispose();
+        }
+        catch (Exception::CLRError)
+        {
+            throw error("@OLK_EDSLabel:DecryptFailed");
+        }
+
+        if (!OLK_EnvironmentDataSetupCrypto::equalsFixedTime(OLK_EnvironmentDataSetupCrypto::mac(masterKey, body, _binding), mac))
+        {
+            throw error("@OLK_EDSLabel:DecryptFailed");
+        }
+
+        try
+        {
+            aes         = System.Security.Cryptography.Aes::Create();
+            cipherBytes = System.Convert::FromBase64String(cipher);
+            decryptor   = aes.CreateDecryptor(OLK_EnvironmentDataSetupCrypto::deriveKey(masterKey, 'enc'), System.Convert::FromBase64String(iv));
+            plainBytes  = decryptor.TransformFinalBlock(cipherBytes, 0, cipherBytes.Length);
+            decryptor.Dispose();
+            aes.Dispose();
+            value = System.Text.Encoding::UTF8.GetString(plainBytes);
+        }
+        catch (Exception::CLRError)
+        {
+            throw error("@OLK_EDSLabel:DecryptFailed");
+        }
+
+        return value;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>lockPrivateKey</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Locks a private key with the platform encryption of the current environment.
+    /// </summary>
+    /// <param name = "_privateKey">The private key as RSA key XML.</param>
+    /// <returns>The locked key; only this environment can unlock it.</returns>
+    /// <remarks>
+    /// The key is encrypted through an unsaved environment record, so the result does not depend on a record id, and is
+    /// unlocked the same way.
+    /// </remarks>
+    public static OLK_EdsEncryptedBlob lockPrivateKey(str _privateKey)
+    {
+        OLK_EnvironmentDataSetupTable buffer;
+
+        Global::editEncryptedField(buffer, _privateKey, fieldNum(OLK_EnvironmentDataSetupTable, LockedPrivateKey), true);
+
+        return buffer.LockedPrivateKey;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>unlockPrivateKey</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Unlocks a private key that the current environment locked.
+    /// </summary>
+    /// <param name = "_lockedKey">The locked key.</param>
+    /// <returns>The private key as RSA key XML; empty if this environment cannot unlock it.</returns>
+    public static str unlockPrivateKey(OLK_EdsEncryptedBlob _lockedKey)
+    {
+        OLK_EnvironmentDataSetupTable   buffer;
+        str                             privateKey;
+
+        if (!conLen(_lockedKey))
+        {
+            return '';
+        }
+
+        buffer.LockedPrivateKey = _lockedKey;
+
+        try
+        {
+            privateKey = Global::editEncryptedField(buffer, '', fieldNum(OLK_EnvironmentDataSetupTable, LockedPrivateKey), false);
+        }
+        catch (Exception::CLRError)
+        {
+            privateKey = '';
+        }
+        catch (Exception::Error)
+        {
+            privateKey = '';
+        }
+
+        if (subStr(privateKey, 1, strLen(OLK_EnvironmentDataSetupCrypto::PrivateKeyPrefix)) != OLK_EnvironmentDataSetupCrypto::PrivateKeyPrefix)
+        {
+            return '';
+        }
+
+        return privateKey;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>blobToBase64</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Converts a locked key to text, so it can be sent to another environment.
+    /// </summary>
+    public static str blobToBase64(OLK_EdsEncryptedBlob _blob)
+    {
+        // base64Encode adds a line break every 72 characters; enrolment.txt has one value per line.
+        return strRem(con2base64str(_blob), "\r\n");
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>base64ToBlob</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Converts text made by <c>blobToBase64</c> back to a locked key.
+    /// </summary>
+    public static OLK_EdsEncryptedBlob base64ToBlob(str _text)
+    {
+        return base64str2con(_text);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>utf8Bytes</Name>
+				<Source><![CDATA[
+    public static System.Byte[] utf8Bytes(str _text)
+    {
+        return System.Text.Encoding::UTF8.GetBytes(_text);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>deriveKey</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Derives a key for one purpose from the random key of a value.
+    /// </summary>
+    private static System.Byte[] deriveKey(System.Byte[] _masterKey, str _purpose)
+    {
+        System.Security.Cryptography.HMACSHA256 hmac = new System.Security.Cryptography.HMACSHA256(_masterKey);
+        System.Byte[] key = hmac.ComputeHash(OLK_EnvironmentDataSetupCrypto::utf8Bytes('OLK-EDS ' + _purpose));
+
+        hmac.Dispose();
+
+        return key;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>mac</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The authentication code of a cipher text and its binding, as base64.
+    /// </summary>
+    private static str mac(System.Byte[] _masterKey, str _body, str _binding)
+    {
+        System.Security.Cryptography.HMACSHA256 hmac = new System.Security.Cryptography.HMACSHA256(OLK_EnvironmentDataSetupCrypto::deriveKey(_masterKey, 'mac'));
+        System.Byte[] code = hmac.ComputeHash(OLK_EnvironmentDataSetupCrypto::utf8Bytes(_body + '|' + _binding));
+
+        hmac.Dispose();
+
+        return System.Convert::ToBase64String(code);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>equalsFixedTime</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Compares two authentication codes in a time that does not depend on where they differ.
+    /// </summary>
+    private static boolean equalsFixedTime(str _a, str _b)
+    {
+        int diff = strLen(_a) == strLen(_b) ? 0 : 1;
+        int len  = min(strLen(_a), strLen(_b));
+
+        for (int i = 1; i <= len; i++)
+        {
+            diff = diff | (char2Num(_a, i) ^ char2Num(_b, i));
+        }
+
+        return diff == 0;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

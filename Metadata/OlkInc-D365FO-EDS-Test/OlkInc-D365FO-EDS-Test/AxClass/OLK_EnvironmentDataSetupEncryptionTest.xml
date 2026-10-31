@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>OLK_EnvironmentDataSetupEncryptionTest</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Tests the encryption of data setup values for one environment: encrypting and decrypting, the binding of a value to its
+/// line, locking the private key with the platform encryption, enrolments as text and as ZIP file, and executing encrypted
+/// lines in the right and in the wrong environment.
+/// </summary>
+/// <remarks>
+/// Environment EDSENC has the URL of the environment the tests run in and the key of this environment, so its encrypted lines
+/// can be executed here. EDSENC2 has the same key but another URL, like a database copy where the setup of another
+/// environment is executed. The encrypted value is written to the client secret of EDSENC itself, through its edit method.
+/// </remarks>
+[SysTestTarget(classStr(OLK_EnvironmentDataSetupCrypto), UtilElementType::Class),
+ SysTestTransaction(TestTransactionMode::None)]
+class OLK_EnvironmentDataSetupEncryptionTest extends SysTestCase
+{
+    public const str EnvironmentId      = 'EDSENC';
+    public const str OtherEnvironmentId = 'EDSENC2';
+    public const str Secret             = 'EDS secret value äöü 123';
+    public const str Binding            = 'edsenc|dat|custgroup|editsecret|42';
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>setUp</Name>
+				<Source><![CDATA[
+    public void setUp()
+    {
+        OLK_EnvironmentDataSetupEnrolment enrolment;
+
+        super();
+
+        ttsbegin;
+        OLK_EnvironmentDataSetupTestHelper::ensureEnvironment(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId, 'Encryption tests', 'https://' + OLK_EnvironmentDataSetupKeyManager::currentHost());
+        OLK_EnvironmentDataSetupTestHelper::ensureEnvironment(OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId, 'Encryption tests, other URL');
+        ttscommit;
+
+        OLK_EnvironmentDataSetupTestHelper::clearEnvironmentLines(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId);
+        OLK_EnvironmentDataSetupTestHelper::clearEnvironmentLines(OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId);
+
+        enrolment = OLK_EnvironmentDataSetupKeyManager::localEnrolment();
+        OLK_EnvironmentDataSetupKeyManager::applyEnrolment(OLK_EnvironmentDataSetupTable::find(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId), enrolment, true);
+
+        // EDSENC2 gets the same key, but its URL is not this environment.
+        ttsbegin;
+        OLK_EnvironmentDataSetupTable other = OLK_EnvironmentDataSetupTable::find(OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId, true);
+        other.PublicKey         = enrolment.parmPublicKey();
+        other.LockedPrivateKey  = enrolment.parmLockedPrivateKey();
+        other.KeyFingerprint    = enrolment.parmFingerprint();
+        other.update();
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testEncryptDecryptRoundTrip</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testEncryptDecryptRoundTrip()
+    {
+        container   keyPair = OLK_EnvironmentDataSetupCrypto::generateKeyPair();
+        str         cipherText = OLK_EnvironmentDataSetupCrypto::encrypt(conPeek(keyPair, 1), OLK_EnvironmentDataSetupEncryptionTest::Secret, OLK_EnvironmentDataSetupEncryptionTest::Binding);
+
+        this.assertFalse(strScan(cipherText, OLK_EnvironmentDataSetupEncryptionTest::Secret, 1, strLen(cipherText)) > 0, 'The cipher text contains the value.');
+        this.assertEquals(OLK_EnvironmentDataSetupEncryptionTest::Secret,
+            OLK_EnvironmentDataSetupCrypto::decrypt(conPeek(keyPair, 2), cipherText, OLK_EnvironmentDataSetupEncryptionTest::Binding),
+            'The value was not decrypted.');
+        this.assertNotEqual(cipherText,
+            OLK_EnvironmentDataSetupCrypto::encrypt(conPeek(keyPair, 1), OLK_EnvironmentDataSetupEncryptionTest::Secret, OLK_EnvironmentDataSetupEncryptionTest::Binding),
+            'Encrypting the same value twice gave the same cipher text.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testOtherBindingFails</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testOtherBindingFails()
+    {
+        container   keyPair = OLK_EnvironmentDataSetupCrypto::generateKeyPair();
+        str         cipherText = OLK_EnvironmentDataSetupCrypto::encrypt(conPeek(keyPair, 1), OLK_EnvironmentDataSetupEncryptionTest::Secret, OLK_EnvironmentDataSetupEncryptionTest::Binding);
+
+        this.assertFalse(this.canDecrypt(conPeek(keyPair, 2), cipherText, OLK_EnvironmentDataSetupEncryptionTest::Binding + 'x'),
+            'A value was decrypted for another line.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testTamperedCipherTextFails</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testTamperedCipherTextFails()
+    {
+        container   keyPair = OLK_EnvironmentDataSetupCrypto::generateKeyPair();
+        str         cipherText = OLK_EnvironmentDataSetupCrypto::encrypt(conPeek(keyPair, 1), OLK_EnvironmentDataSetupEncryptionTest::Secret, OLK_EnvironmentDataSetupEncryptionTest::Binding);
+        int         pos = strLen(cipherText) - 50;
+        str         tampered = subStr(cipherText, 1, pos - 1) + (subStr(cipherText, pos, 1) == 'A' ? 'B' : 'A') + subStr(cipherText, pos + 1, strLen(cipherText) - pos);
+
+        this.assertFalse(this.canDecrypt(conPeek(keyPair, 2), tampered, OLK_EnvironmentDataSetupEncryptionTest::Binding),
+            'A changed cipher text was decrypted.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testOtherKeyFails</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testOtherKeyFails()
+    {
+        container   keyPair = OLK_EnvironmentDataSetupCrypto::generateKeyPair();
+        container   otherKeyPair = OLK_EnvironmentDataSetupCrypto::generateKeyPair();
+        str         cipherText = OLK_EnvironmentDataSetupCrypto::encrypt(conPeek(keyPair, 1), OLK_EnvironmentDataSetupEncryptionTest::Secret, OLK_EnvironmentDataSetupEncryptionTest::Binding);
+
+        this.assertFalse(this.canDecrypt(conPeek(otherKeyPair, 2), cipherText, OLK_EnvironmentDataSetupEncryptionTest::Binding),
+            'A value was decrypted with the key of another environment.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testLockedKeyUnlocksHere</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testLockedKeyUnlocksHere()
+    {
+        container               keyPair = OLK_EnvironmentDataSetupCrypto::generateKeyPair();
+        OLK_EdsEncryptedBlob    lockedKey = OLK_EnvironmentDataSetupCrypto::lockPrivateKey(conPeek(keyPair, 2));
+        str                     lockedText = OLK_EnvironmentDataSetupCrypto::blobToBase64(lockedKey);
+
+        this.assertFalse(strScan(lockedText, 'RSAKeyValue', 1, strLen(lockedText)) > 0, 'The locked key is readable.');
+        this.assertEquals(conPeek(keyPair, 2), OLK_EnvironmentDataSetupCrypto::unlockPrivateKey(OLK_EnvironmentDataSetupCrypto::base64ToBlob(lockedText)),
+            'The locked key did not unlock after a round trip as text.');
+        this.assertEquals(conPeek(keyPair, 1), OLK_EnvironmentDataSetupCrypto::publicKeyOf(conPeek(keyPair, 2)), 'The public key of the private key differs.');
+        this.assertEquals('', OLK_EnvironmentDataSetupCrypto::unlockPrivateKey(conNull()), 'An empty locked key was unlocked.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testLocalEnrolmentIsStable</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testLocalEnrolmentIsStable()
+    {
+        OLK_EnvironmentDataSetupEnrolment first  = OLK_EnvironmentDataSetupKeyManager::localEnrolment();
+        OLK_EnvironmentDataSetupEnrolment second = OLK_EnvironmentDataSetupKeyManager::localEnrolment();
+
+        this.assertEquals(OLK_EnvironmentDataSetupKeyManager::currentHost(), first.parmHostName(), 'The enrolment is not for this environment.');
+        this.assertEquals(first.parmFingerprint(), second.parmFingerprint(), 'The key of this environment changed between two calls.');
+        this.assertEquals(64, strLen(first.parmFingerprint()), 'The fingerprint is not a SHA-256 in hexadecimal.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testEnrolmentTextRoundTrip</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testEnrolmentTextRoundTrip()
+    {
+        OLK_EnvironmentDataSetupEnrolment enrolment = OLK_EnvironmentDataSetupKeyManager::localEnrolment();
+        OLK_EnvironmentDataSetupEnrolment fromText  = OLK_EnvironmentDataSetupEnrolment::fromText(enrolment.toText());
+        OLK_EnvironmentDataSetupEnrolment fromTransport = OLK_EnvironmentDataSetupEnrolment::fromTransportText('"' + enrolment.toTransportText() + '"');
+        str transport = enrolment.toTransportText();
+
+        this.assertEquals(enrolment.parmFingerprint(), fromText.parmFingerprint(), 'The fingerprint changed in the text.');
+        this.assertEquals(enrolment.parmPublicKey(), fromText.parmPublicKey(), 'The public key changed in the text.');
+        this.assertTrue(OLK_EnvironmentDataSetupKeyManager::canUnlock(fromText.parmPublicKey(), fromText.parmLockedPrivateKey()), 'The locked key from the text cannot be unlocked.');
+        this.assertEquals(enrolment.parmFingerprint(), fromTransport.parmFingerprint(), 'The fingerprint changed in the service response.');
+        this.assertFalse(strScan(transport, '/', 1, strLen(transport)) || strScan(transport, '+', 1, strLen(transport)) || strScan(transport, '=', 1, strLen(transport)),
+            'The service response text needs JSON escaping.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testChangedEnrolmentIsRejected</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testChangedEnrolmentIsRejected()
+    {
+        OLK_EnvironmentDataSetupEnrolment   enrolment = OLK_EnvironmentDataSetupKeyManager::localEnrolment();
+        container                           otherKeyPair = OLK_EnvironmentDataSetupCrypto::generateKeyPair();
+        str                                 text = strReplace(enrolment.toText(), enrolment.parmPublicKey(), conPeek(otherKeyPair, 1));
+        boolean                             rejected;
+
+        try
+        {
+            OLK_EnvironmentDataSetupEnrolment::fromText(text);
+        }
+        catch (Exception::Error)
+        {
+            rejected = true;
+        }
+
+        this.assertTrue(rejected, 'An enrolment with a replaced public key was accepted.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testEnrolmentFileRoundTrip</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testEnrolmentFileRoundTrip()
+    {
+        OLK_EnvironmentDataSetupEnrolment enrolment = OLK_EnvironmentDataSetupKeyManager::localEnrolment();
+        OLK_EnvironmentDataSetupEnrolment fromFile  = OLK_EnvironmentDataSetupKeyManager::readEnrolmentFile(OLK_EnvironmentDataSetupKeyManager::exportEnrolmentFile());
+
+        this.assertEquals(enrolment.parmHostName(), fromFile.parmHostName(), 'The host name changed in the ZIP file.');
+        this.assertEquals(enrolment.parmFingerprint(), fromFile.parmFingerprint(), 'The fingerprint changed in the ZIP file.');
+        this.assertTrue(OLK_EnvironmentDataSetupKeyManager::canUnlock(fromFile.parmPublicKey(), fromFile.parmLockedPrivateKey()), 'The locked key from the ZIP file cannot be unlocked.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testEnrolmentForOtherHostIsRejected</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testEnrolmentForOtherHostIsRejected()
+    {
+        boolean rejected;
+
+        try
+        {
+            OLK_EnvironmentDataSetupKeyManager::applyEnrolment(
+                OLK_EnvironmentDataSetupTable::find(OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId),
+                OLK_EnvironmentDataSetupKeyManager::localEnrolment(),
+                true);
+        }
+        catch (Exception::Error)
+        {
+            rejected = true;
+        }
+
+        this.assertTrue(rejected, 'The key of this environment was stored for an environment with another URL.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testNormalizeHost</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testNormalizeHost()
+    {
+        this.assertEquals('uat.sandbox.operations.dynamics.com', OLK_EnvironmentDataSetupKeyManager::normalizeHost('https://UAT.sandbox.operations.dynamics.com/?cmp=USMF'), 'A full URL was not reduced to its host.');
+        this.assertEquals('uat.sandbox.operations.dynamics.com', OLK_EnvironmentDataSetupKeyManager::normalizeHost(' uat.sandbox.operations.dynamics.com '), 'A host without https:// was not accepted.');
+        this.assertEquals('', OLK_EnvironmentDataSetupKeyManager::normalizeHost(''), 'An empty URL gave a host.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testEncryptedLineStoresOnlyCipherText</Name>
+				<Source><![CDATA[
+    [SysTestMethod]
+    public void testEncryptedLineStoresOnlyCipherText()
+    {
+        OLK_EnvironmentDataSetupTrans trans = this.addEncryptedLine(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId);
+
+        this.assertEquals('', trans.Value, 'The value of an encrypted line is stored in plain text.');
+        this.assertTrue(trans.CipherText != '', 'The value of an encrypted line was not encrypted.');
+        this.assertFalse(strScan(trans.CipherText, OLK_EnvironmentDataSetupEncryptionTest::Secret, 1, strLen(trans.CipherText)) > 0, 'The cipher text contains the value.');
+        this.assertEquals(OLK_EnvironmentDataSetupCrypto::ValueMask, trans.editValue(false, ''), 'The form does not mask the encrypted value.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testExecuteDecryptsEncryptedLine</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Executing EDSENC here decrypts the value and writes it through the edit method; the log does not contain it.
+    /// </summary>
+    [SysTestMethod]
+    public void testExecuteDecryptsEncryptedLine()
+    {
+        RecId                           fromLog = OLK_EnvironmentDataSetupTestHelper::lastLogRecId();
+        OLK_EnvironmentDataSetupTrans   trans = this.addEncryptedLine(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId);
+        OLK_EnvironmentDataSetupLog     log;
+
+        OLK_EnvironmentDataSetupTestHelper::execute(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId, NoYes::Yes, NoYes::No, NoYes::No);
+
+        log = OLK_EnvironmentDataSetupTestHelper::findLogSince(fromLog, OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId, OLK_EdsLogType::Data, int642Str(trans.RecId));
+
+        this.assertEquals(OLK_EdsLogStatus::OK, log.Status, strFmt('The encrypted line failed: %1', log.ErrorTxt));
+        this.assertEquals('', log.Value, 'The encrypted value was written to the log.');
+        this.assertEquals(OLK_EnvironmentDataSetupEncryptionTest::Secret,
+            OLK_EnvironmentDataSetupTable::find(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId).clientSecret(),
+            'The decrypted value was not written through the edit method.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testExecuteInOtherEnvironmentFails</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// EDSENC2 has a URL that is not this environment, so its encrypted lines fail here even with a key that can be unlocked.
+    /// </summary>
+    [SysTestMethod]
+    public void testExecuteInOtherEnvironmentFails()
+    {
+        RecId                           fromLog = OLK_EnvironmentDataSetupTestHelper::lastLogRecId();
+        OLK_EnvironmentDataSetupTrans   trans = this.addEncryptedLine(OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId);
+        OLK_EnvironmentDataSetupLog     log;
+
+        OLK_EnvironmentDataSetupTestHelper::execute(OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId, NoYes::Yes, NoYes::No, NoYes::No);
+
+        log = OLK_EnvironmentDataSetupTestHelper::findLogSince(fromLog, OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId, OLK_EdsLogType::Data, int642Str(trans.RecId));
+
+        this.assertEquals(OLK_EdsLogStatus::Error, log.Status, 'An encrypted line was executed in another environment.');
+        this.assertEquals('', log.Value, 'The encrypted value was written to the log.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testMovedLineCannotBeDecrypted</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A cipher text copied to a line for another record cannot be decrypted, so it cannot be redirected to a visible field.
+    /// </summary>
+    [SysTestMethod]
+    public void testMovedLineCannotBeDecrypted()
+    {
+        OLK_EnvironmentDataSetupTrans   trans = this.addEncryptedLine(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId);
+        str                             privateKey = OLK_EnvironmentDataSetupKeyManager::privateKeyForEnvironment(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId);
+        str                             cipherText = trans.CipherText;
+
+        trans.RefRecId = OLK_EnvironmentDataSetupTable::find(OLK_EnvironmentDataSetupEncryptionTest::OtherEnvironmentId).RecId;
+
+        this.assertFalse(this.canDecrypt(privateKey, cipherText, trans.encryptionBinding()), 'A value was decrypted for another record.');
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addEncryptedLine</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds an encrypted line that writes the secret to the client secret of EDSENC through its edit method, entering the value
+    /// as the form does.
+    /// </summary>
+    private OLK_EnvironmentDataSetupTrans addEncryptedLine(OLK_EdsEnvironmentId _environmentId)
+    {
+        OLK_EnvironmentDataSetupTrans trans;
+
+        ttsbegin;
+
+        trans.EnvironmentId         = _environmentId;
+        trans.RefDataAreaId         = '';
+        trans.RefTableId            = tableNum(OLK_EnvironmentDataSetupTable);
+        trans.RefRecId              = OLK_EnvironmentDataSetupTable::find(OLK_EnvironmentDataSetupEncryptionTest::EnvironmentId).RecId;
+        trans.EncryptedField        = NoYes::Yes;
+        trans.EncryptedMethodName   = tableMethodStr(OLK_EnvironmentDataSetupTable, editClientSecret);
+        trans.Description           = 'Encrypted test value';
+        trans.editValue(true, OLK_EnvironmentDataSetupEncryptionTest::Secret);
+        trans.insert();
+
+        ttscommit;
+
+        return trans;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>canDecrypt</Name>
+				<Source><![CDATA[
+    private boolean canDecrypt(str _privateKey, str _cipherText, str _binding)
+    {
+        boolean decrypted;
+
+        try
+        {
+            OLK_EnvironmentDataSetupCrypto::decrypt(_privateKey, _cipherText, _binding);
+            decrypted = true;
+        }
+        catch (Exception::Error)
+        {
+            decrypted = false;
+        }
+
+        return decrypted;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

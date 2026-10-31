@@ -20,16 +20,40 @@ public static class OLK_EnvironmentDataSetupTestHelper
 			<Method>
 				<Name>ensureEnvironment</Name>
 				<Source><![CDATA[
-    public static void ensureEnvironment(OLK_EdsEnvironmentId _environmentId, Description _description)
+    /// <summary>
+    /// Creates a test environment when it does not exist. Test environments get a URL under <c>eds-test.invalid</c>, which is
+    /// never the URL of a real environment.
+    /// </summary>
+    public static void ensureEnvironment(OLK_EdsEnvironmentId _environmentId, Description _description, OLK_EdsEnvironmentUrl _url = '')
     {
-        OLK_EnvironmentDataSetupTable environment;
+        OLK_EnvironmentDataSetupTable   environment = OLK_EnvironmentDataSetupTable::find(_environmentId, true);
+        OLK_EdsEnvironmentUrl           url = _url ? _url : OLK_EnvironmentDataSetupTestHelper::testUrl(_environmentId);
 
-        if (!OLK_EnvironmentDataSetupTable::exist(_environmentId))
+        if (!environment.RecId)
         {
-            environment.EnvironmentId = _environmentId;
-            environment.Description   = _description;
+            environment.EnvironmentId  = _environmentId;
+            environment.Description    = _description;
+            environment.EnvironmentUrl = url;
             environment.insert();
         }
+        else if (environment.EnvironmentUrl != url)
+        {
+            environment.EnvironmentUrl = url;
+            environment.update();
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testUrl</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The URL of a test environment.
+    /// </summary>
+    public static OLK_EdsEnvironmentUrl testUrl(OLK_EdsEnvironmentId _environmentId)
+    {
+        return strFmt('https://%1.eds-test.invalid', strLwr(_environmentId));
     }
 
 ]]></Source>

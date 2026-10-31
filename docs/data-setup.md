@@ -62,6 +62,8 @@ For enum fields you can type the number, the symbol (`Yes`) or the label; the fo
 
 Encrypted fields cannot be assigned directly. Set **Encrypted field** to Yes and enter, in **Edit method name**, the name of the edit method on the table that sets the value. At execution the edit method is called with the value. The value is masked in the form and is not written to the log.
 
+The value is encrypted with the key of the line's environment as soon as you type it, and only the encrypted value is stored. The environment must have a key first, and only that environment can decrypt the value when its setup is executed. See [Encrypted values for each environment](encryption.md).
+
 ## Adding lines
 
 - From any form: open the Personalize pop-up on a field and select **Create environment data**. This adds the field with its current value; you then change the value here. See [Adding data setup lines from any form](personalization.md).
@@ -73,7 +75,7 @@ For each line of the environment, in its company:
 
 1. The record is selected for update by RecId. If it is not found, the line is logged as Error.
 2. The current value is read and kept as the original value for the log.
-3. The new value is converted to the field's type and assigned (for encrypted fields the edit method is called instead).
+3. The new value is converted to the field's type and assigned (for encrypted fields the value is decrypted and the edit method is called instead).
 4. `validateField` and `validateWrite` of the table must pass; otherwise the line is logged as Error and the record is not changed.
 5. The record is updated with `update()`, so the table's own update logic runs.
 

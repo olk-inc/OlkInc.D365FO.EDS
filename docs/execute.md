@@ -29,6 +29,8 @@ The red numbers in each screenshot match the numbered steps below it.
 
 The dialog is a standard SysOperation dialog, so it can also be run in batch.
 
+Encrypted values of an environment can be decrypted only in that environment, so run the setup of the environment you are in. See [After the refresh](encryption.md#after-the-refresh).
+
 ## Order
 
 1. All data setup lines of the environment.
